@@ -312,10 +312,10 @@ def get_navigation_range(report_period, rs, first_record, last_record):
         prev_date_enabled = True
 
     period_nav = {'prev_date': prev_date.format('YYYY-MM-DD'),
-        'prev_enabled': prev_date_enabled,
-        'next_date': next_date.format('YYYY-MM-DD'),
-        'next_enabled': next_date_enabled
-        }
+                  'prev_enabled': prev_date_enabled,
+                  'next_date': next_date.format('YYYY-MM-DD'),
+                  'next_enabled': next_date_enabled
+                  }
 
     return period_nav
 
