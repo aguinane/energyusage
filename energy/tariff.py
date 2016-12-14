@@ -4,7 +4,7 @@ from datetime import timedelta, date
 import calendar
 import statistics
 from . import tariff_config as tc
-from .usage import UsageStats, get_power_data, in_peak_season
+from .usage import UsageStats, get_consumption_data, in_peak_season
 
 
 class DailyUsage(object):
@@ -18,7 +18,7 @@ class DailyUsage(object):
         for single_date in self.daterange(start_date, end_date):
             sd = arrow.get(single_date)
             ed = sd.replace(days=+1)
-            usage = get_power_data(self.meter_id, sd.datetime, ed.datetime)
+            usage = get_consumption_data(self.meter_id, sd.datetime, ed.datetime)
             daily_usage[single_date.strftime("%Y-%m-%d")] = UsageStats(usage)
         self.daily_usage = daily_usage
 
@@ -35,7 +35,6 @@ class GeneralSupplyTariff(object):
 
     def __init__(self, meter_id):
         self.meter_id = meter_id
-        self.daily_meter_services_charge = tc.METER_SERVICES_CHARGE_PRIMARY
         self.daily_supply_charge = tc.RESIDENTIAL_GS_SUPPLY_CHARGE
         self.consumption_rate = tc.RESIDENTIAL_GS_USAGE
 
@@ -43,7 +42,6 @@ class GeneralSupplyTariff(object):
         """ Calculate charges for specified period
         """
         num_days = (end_date - start_date).days
-        self.meter_services_charge = self.daily_meter_services_charge * num_days
         self.supply_charge = self.daily_supply_charge * num_days
 
         self.consumption_kWh = 0
@@ -51,8 +49,7 @@ class GeneralSupplyTariff(object):
         for day in du.daily_usage.keys():
             self.consumption_kWh += du.daily_usage[day].consumption_total / 1000
         self.consumption_charge = self.consumption_rate * self.consumption_kWh
-        self.total_cost = self.meter_services_charge + \
-            self.supply_charge + self.consumption_charge
+        self.total_cost = self.supply_charge + self.consumption_charge
         return self.total_cost
 
 
@@ -62,7 +59,6 @@ class TimeofUseTariff(object):
 
     def __init__(self, meter_id):
         self.meter_id = meter_id
-        self.daily_meter_services_charge = tc.METER_SERVICES_CHARGE_PRIMARY
         self.daily_supply_charge = tc.RESIDENTIAL_TOU_SUPPLY_CHARGE
         self.consumption_rate_peak = tc.RESIDENTIAL_TOU_USAGE_PEAK
         self.consumption_rate_offpeak = tc.RESIDENTIAL_TOU_USAGE_OFFPEAK
@@ -71,7 +67,6 @@ class TimeofUseTariff(object):
         """ Calculate charges for specified period
         """
         num_days = (end_date - start_date).days
-        self.meter_services_charge = self.daily_meter_services_charge * num_days
         self.supply_charge = self.daily_supply_charge * num_days
 
         self.peak_consumption_kWh = 0
@@ -81,13 +76,16 @@ class TimeofUseTariff(object):
         for day in du.daily_usage.keys():
             self.peak_consumption_kWh += du.daily_usage[day].consumption_peak / 1000
             self.offpeak_consumption_kWh += du.daily_usage[day].consumption_offpeak / 1000
+            if not in_peak_season(day):
+                # Peak only applies in certain months
+                self.offpeak_consumption_kWh += self.peak_consumption_kWh
+                self.peak_consumption_kWh = 0
 
         self.peak_consumption_charge = self.consumption_rate_peak * self.peak_consumption_kWh
         self.offpeak_consumption_charge = self.consumption_rate_offpeak * \
             self.offpeak_consumption_kWh
 
-        self.total_cost = self.meter_services_charge + self.supply_charge + \
-            self.peak_consumption_charge + self.offpeak_consumption_charge
+        self.total_cost = self.supply_charge + self.peak_consumption_charge + self.offpeak_consumption_charge
         return self.total_cost
 
 
@@ -97,7 +95,6 @@ class DemandTariff(object):
 
     def __init__(self, meter_id):
         self.meter_id = meter_id
-        self.daily_meter_services_charge = tc.METER_SERVICES_CHARGE_PRIMARY
         self.daily_supply_charge = tc.RESIDENTIAL_TOUD_SUPPLY_CHARGE
         self.consumption_rate = tc.RESIDENTIAL_TOUD_USAGE
         self.demand_charge_peak = tc.RESIDENTIAL_TOUD_DEMAND_PEAK
@@ -107,7 +104,6 @@ class DemandTariff(object):
         """ Calculate charges for specified period
         """
         num_days = (end_date - start_date).days
-        self.meter_services_charge = self.daily_meter_services_charge * num_days
         self.supply_charge = self.daily_supply_charge * num_days
         self.consumption_kWh = 0
 
@@ -120,9 +116,8 @@ class DemandTariff(object):
         # Calculate daily peak
         peak_days = dict()
         for day in du.daily_usage.keys():
-            daily_peak = du.daily_usage[day].demand_abs_peak
             avg_peak = du.daily_usage[day].demand_avg_peak
-            peak_days[day] = (daily_peak, avg_peak)
+            peak_days[day] = avg_peak
         self.peak_days = peak_days
 
         # Sort and get top 4 demand days
@@ -162,8 +157,7 @@ class DemandTariff(object):
         days_in_month = calendar.monthrange(
             start_date.year, start_date.month)[1]
         self.demand_charge = self.demand_charge * (num_days / days_in_month)
-        self.total_cost = self.meter_services_charge + \
-            self.supply_charge + self.consumption_charge + self.demand_charge
+        self.total_cost = self.supply_charge + self.consumption_charge + self.demand_charge
         return self.total_cost
 
 

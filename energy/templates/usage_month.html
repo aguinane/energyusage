@@ -47,123 +47,60 @@
 </div><!-- /card-->
 
 
- <div class="row">
-    <div class="col-sm-4">
-    <div class="card card-block">
-    <h4>Consumption Stats</h4>
-    <dl class="row">
-        <dt class="col-sm-6">Peak</dt>
-        <dd class="col-sm-6">{{ t12.peak_consumption_kWh|round(2) }} kWh</dd>
-
-        <dt class="col-sm-6">Off-Peak</dt>
-        <dd class="col-sm-6">{{ t12.offpeak_consumption_kWh|round(2) }} kWh</dd>
-    </dl>
-
-    <dl class="row">
-        <dt class="col-sm-6"># of Days</dt>
-        <dd class="col-sm-6">{{ num_days }}</dd>
-    </dl>
-
-    </div><!-- /card-->
-    </div><!-- /col-->
-
-    <div class="col-sm-4">
-    <div class="card card-block">
-    <h4>Demand Stats</h4>
-    <dl class="row">
-    <dt class="col-sm-6">{% if not t14.peak_season %}Off-{% endif %}Peak Average</dt>
-    <dd class="col-sm-6">{{ (t14.peak_demand_kW)|round(2) }} kW</dd>
-      {% for day in t14.top_four_days %}
-        <dt class="col-sm-6"><em>#{{loop.index}}: {{day}}<em></dt>
-        <dd class="col-sm-6">{{ (t14.peak_days[day][0]/1000)|round(2) }} | {{ (t14.peak_days[day][1]/1000)|round(2) }} kW</dd>
-      {% endfor %}
-
-    </dl>
-    </div><!-- /card-->
-    </div><!-- /col-->
-
-</div><!-- /row-->
-
-
   <div class="row">
-    <div class="col-sm-4">
     <div class="card card-block">
-      <h4>General Supply Tariff</h4>
-
-      <dl class="row">
-        <dt class="col-sm-9">Meter Services Charge</dt>
-        <dd class="col-sm-3">${{ (t11.meter_services_charge/100)|round(2) }}</dd>
-
-        <dt class="col-sm-9">Supply Charge</dt>
-        <dd class="col-sm-3">${{ (t11.supply_charge/100)|round(2) }}</dd>
-
-        <dt class="col-sm-9">Consumption Charge</dt>
-        <dd class="col-sm-3">${{ (t11.consumption_charge/100)|round(2) }}</dd>
-
-      </dl>
-      <hr />
-      <dl class="row">
-        <dt class="col-sm-9">Total Cost</dt>
-        <dd class="col-sm-3">${{ (t11.total_cost/100)|round(2) }}</dd>
-      </dl>
+        <h3>Tariff Comparison</h3>
+        <table class="table table-striped">
+        <thead>
+        <tr>
+            <th>Component</th>
+            <th>Usage</th>
+            <th>General Supply</th>
+            <th>Time of Use</th>
+            <th>Time of Use (Demand)</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+            <td>Service Fee</td>
+            <td>{{ num_days }} days</td>
+            <td>${{ (t11.supply_charge/100)|round(2) }}</td>
+            <td>${{ (t12.supply_charge/100)|round(2) }}</td>
+            <td>${{ (t14.supply_charge/100)|round(2) }}</td>
+        </tr>
+        <tr>
+            <td>Demand Charge</td>
+            <td>{{ (t14.peak_demand_kW)|round(2) }} kW</td>
+            <td>-</td>
+            <td>-</td>
+            <td>${{ (t14.demand_charge/100)|round(2) }}</td>
+        </tr>
+        <tr>
+            <td>Peak Consumption</td>
+            <td>{{ t12.peak_consumption_kWh|round(2) }} kWh</td>
+            <td>-</td>
+            <td>${{ (t12.peak_consumption_charge/100)|round(2) }}</td>
+            <td>-</td>
+        </tr>
+        <tr>
+            <td>Off-Peak Consumption</td>
+            <td>{{ t12.offpeak_consumption_kWh|round(2) }} kWh</td>
+            <td>${{ (t11.consumption_charge/100)|round(2) }}</td>
+            <td>${{ (t12.offpeak_consumption_charge/100)|round(2) }}</td>
+            <td>${{ (t14.consumption_charge/100)|round(2) }}</td>
+        </tr>
+        <tr>
+            <td>Total</td>
+            <td></td>
+            <td>${{ (t11.total_cost/100)|round(2) }}</td>
+            <td>${{ (t12.total_cost/100)|round(2) }}</td>
+            <td>${{ (t14.total_cost/100)|round(2) }}</td>
+        </tr>
+        </tbody>
+        </table>
     </div><!-- /card-->
-    </div><!-- /col-->
-
-    <div class="col-sm-4">
-    <div class="card card-block">
-      <h4>Time of Use Tariff</h4>
-
-      <dl class="row">
-        <dt class="col-sm-9">Meter Services Charge</dt>
-        <dd class="col-sm-3">${{ (t12.meter_services_charge/100)|round(2) }}</dd>
-
-        <dt class="col-sm-9">Supply Charge</dt>
-        <dd class="col-sm-3">${{ (t12.supply_charge/100)|round(2) }}</dd>
-
-        <dt class="col-sm-9">Consumption (Peak)</dt>
-        <dd class="col-sm-3">${{ (t12.peak_consumption_charge/100)|round(2) }}</dd>
-
-        <dt class="col-sm-9">Consumption (Off-Peak)</dt>
-        <dd class="col-sm-3">${{ (t12.offpeak_consumption_charge/100)|round(2) }}</dd>
-
-      </dl>
-      <hr />
-      <dl class="row">
-        <dt class="col-sm-9">Total Cost</dt>
-        <dd class="col-sm-3">${{ (t12.total_cost/100)|round(2) }}</dd>
-      </dl>
-    </div><!-- /card-->
-    </div><!-- /col-->
-
-    <div class="col-sm-4">
-    <div class="card card-block">
-      <h4>Demand Tariff</h4>
-
-      <dl class="row">
-        <dt class="col-sm-9">Meter Services Charge</dt>
-        <dd class="col-sm-3">${{ (t14.meter_services_charge/100)|round(2) }}</dd>
-
-        <dt class="col-sm-9">Supply Charge</dt>
-        <dd class="col-sm-3">${{ (t14.supply_charge/100)|round(2) }}</dd>
-
-        <dt class="col-sm-9">Consumption Charge</dt>
-        <dd class="col-sm-3">${{ (t14.consumption_charge/100)|round(2) }}</dd>
-
-        <dt class="col-sm-9">Demand Charge</dt>
-        <dd class="col-sm-3">${{ (t14.demand_charge/100)|round(2) }}</dd>
-
-      </dl>
-      <hr />
-      <dl class="row">
-        <dt class="col-sm-9">Total Cost</dt>
-        <dd class="col-sm-3">${{ (t14.total_cost/100)|round(2) }}</dd>
-      </dl>
-    </div><!-- /card-->
-    </div><!-- /col-->
 
   </div><!-- /row-->
-
-
 
 
 <!-- Flot code - load json into chart div-->

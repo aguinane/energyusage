@@ -40,20 +40,19 @@ class TestUsage(unittest.TestCase):
     def test_usage_calcs(self):
         """ Test usage aggregation
         """
-        usage = [['2016-01-01 14:00:00', 5],
-                 ['2016-01-01 14:30:00', 5],
-                 ['2016-01-01 15:00:00', 5],
-                 ['2016-01-01 15:30:00', 15],
-                 ['2016-01-01 16:00:00', 25],
-                 ['2016-01-01 16:30:00', 30],
-                ]
+        usage = [('2016-01-01 14:00:00', 0.005),
+                 ('2016-01-01 14:30:00', 0.005),
+                 ('2016-01-01 15:00:00', 0.005),
+                 ('2016-01-01 15:30:00', 0.015),
+                 ('2016-01-01 16:00:00', 0.025),
+                 ('2016-01-01 16:30:00', 0.030),
+                 ]
 
         u = UsageStats(usage)
-        self.assertEqual(u.consumption_offpeak, 7.5)
-        self.assertEqual(u.consumption_peak, 35)
-        self.assertEqual(u.consumption_total, 42.5)
-        self.assertEqual(u.demand_abs_peak, 30)
-        self.assertAlmostEqual(u.demand_avg_peak, 23.3, places=1)
+        self.assertEqual(u.consumption_offpeak, 0.015)
+        self.assertEqual(u.consumption_peak, 0.070)
+        self.assertEqual(u.consumption_total, 0.085)
+        self.assertAlmostEqual(u.demand_avg_peak, 0.011, places=3)
 
 
 if __name__ == '__main__':
