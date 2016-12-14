@@ -47,65 +47,64 @@
 </div><!-- /card-->
 
 
-  <div class="row">
-    <div class="card card-block">
-        <h3>Tariff Comparison</h3>
-        <table class="table table-striped">
-        <thead>
-        <tr>
-            <th>Component</th>
-            <th>Usage</th>
-            <th>General Supply</th>
-            <th>Time of Use</th>
-            <th>Time of Use (Demand)</th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr>
-            <td>Service Fee</td>
-            <td>{{ num_days }} days</td>
-            <td>${{ (t11.supply_charge/100)|round(2) }}</td>
-            <td>${{ (t12.supply_charge/100)|round(2) }}</td>
-            <td>${{ (t14.supply_charge/100)|round(2) }}</td>
-        </tr>
-        <tr>
-            <td>Demand Charge</td>
-            <td>{{ (t14.peak_demand_kW)|round(2) }} kW</td>
-            <td>-</td>
-            <td>-</td>
-            <td>${{ (t14.demand_charge/100)|round(2) }}</td>
-        </tr>
-        <tr>
-            <td>Peak Consumption</td>
-            <td>{{ t12.peak_consumption_kWh|round(2) }} kWh</td>
-            <td>-</td>
-            <td>${{ (t12.peak_consumption_charge/100)|round(2) }}</td>
-            <td>-</td>
-        </tr>
-        <tr>
-            <td>Off-Peak Consumption</td>
-            <td>{{ t12.offpeak_consumption_kWh|round(2) }} kWh</td>
-            <td>${{ (t11.consumption_charge/100)|round(2) }}</td>
-            <td>${{ (t12.offpeak_consumption_charge/100)|round(2) }}</td>
-            <td>${{ (t14.consumption_charge/100)|round(2) }}</td>
-        </tr>
-        <tr>
-            <td>Total</td>
-            <td></td>
-            <td>${{ (t11.total_cost/100)|round(2) }}</td>
-            <td>${{ (t12.total_cost/100)|round(2) }}</td>
-            <td>${{ (t14.total_cost/100)|round(2) }}</td>
-        </tr>
-        </tbody>
-        </table>
-    </div><!-- /card-->
+<div class="card card-block">
+    <h3>Tariff Comparison</h3>
+    <table class="table table-striped">
+    <thead>
+    <tr>
+        <th>Component</th>
+        <th>Usage</th>
+        <th>General Supply</th>
+        <th>Time of Use</th>
+        <th>Time of Use (Demand)</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td>Service Fee</td>
+        <td>{{ num_days }} days</td>
+        <td>${{ (t11.supply_charge/100)|round(2) }}</td>
+        <td>${{ (t12.supply_charge/100)|round(2) }}</td>
+        <td>${{ (t14.supply_charge/100)|round(2) }}</td>
+    </tr>
+    <tr>
+        <td>Demand Charge</td>
+        <td>{{ (t14.peak_demand_kW)|round(2) }} kW</td>
+        <td>-</td>
+        <td>-</td>
+        <td>${{ (t14.demand_charge/100)|round(2) }}</td>
+    </tr>
+    <tr>
+        <td>Peak Consumption</td>
+        <td>{{ t12.peak_consumption_kWh|round(2) }} kWh</td>
+        <td>-</td>
+        <td>${{ (t12.peak_consumption_charge/100)|round(2) }}</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>Off-Peak Consumption</td>
+        <td>{{ t12.offpeak_consumption_kWh|round(2) }} kWh</td>
+        <td>${{ (t11.consumption_charge/100)|round(2) }}</td>
+        <td>${{ (t12.offpeak_consumption_charge/100)|round(2) }}</td>
+        <td>${{ (t14.consumption_charge/100)|round(2) }}</td>
+    </tr>
+    <tr>
+        <td>Total</td>
+        <td></td>
+        <td>${{ (t11.total_cost/100)|round(2) }}</td>
+        <td>${{ (t12.total_cost/100)|round(2) }}</td>
+        <td>${{ (t14.total_cost/100)|round(2) }}</td>
+    </tr>
+    </tbody>
+    </table>
+</div><!-- /card-->
 
-  </div><!-- /row-->
 
 
 <!-- Flot code - load json into chart div-->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/flot/0.8.3/jquery.flot.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/flot/0.8.3/jquery.flot.time.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/flot/0.8.3/jquery.flot.stack.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/flot/0.8.3/jquery.flot.selection.min.js"></script>
 <script language="javascript" type="text/javascript">
 $(document).ready(function(){
@@ -144,17 +143,27 @@ $(document).ready(function(){
                 plotarea,
                 //plot data
                 [
-                    { data: json.consumption,
+                    { data: json.consumption_offpeak,
                       bars: { show: true,
                               fill: true,
                               align: 'right',
                               barWidth: 86400000
                             },
-                      label: "Daily Consumption (kWh)"
+                      label: "Daily Peak Consumption (kWh)"
+                    },
+                    { data: json.consumption_peak,
+                      bars: { show: true,
+                              fill: true,
+                              align: 'right',
+                              barWidth: 86400000
+                            },
+                      color: "#bf2f40",
+                      label: "Daily Off-Peak Consumption (kWh)"
                     }
                 ],
                 // plot settings
                 {
+                    series: {stack: true},
                     grid: {hoverable: true,
                            clickable: true,
                            markings: weekendAreas

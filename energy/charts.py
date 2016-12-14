@@ -1,6 +1,6 @@
 import arrow
 from .models import Energy
-from .usage import get_energy_data, convert_wh_to_w, get_power_data
+from .usage import get_energy_data, convert_wh_to_w, get_power_data, in_peak_time
 from .tariff import DailyUsage
 
 
@@ -39,12 +39,18 @@ def get_daily_chart_data(meter_id, start_date, end_date):
     chartdata = {}
     chartdata['label'] = 'Daily Usage'
     chartdata['consumption'] = []
+    chartdata['consumption_peak'] = []
+    chartdata['consumption_offpeak'] = []
 
     du = DailyUsage(meter_id, start_date, end_date)
     for day in du.daily_usage.keys():
         dTime = arrow.get(day).replace(days=+1)
         ts = int(dTime.timestamp * 1000)
-        usage = du.daily_usage[day].consumption_total / 1000
-        chartdata['consumption'].append([ts, usage])
+        usage_total = du.daily_usage[day].consumption_total / 1000
+        usage_peak = du.daily_usage[day].consumption_peak / 1000
+        usage_offpeak = du.daily_usage[day].consumption_offpeak / 1000
+        chartdata['consumption'].append([ts, usage_total])
+        chartdata['consumption_peak'].append([ts, usage_peak])
+        chartdata['consumption_offpeak'].append([ts, usage_offpeak])
 
     return chartdata
