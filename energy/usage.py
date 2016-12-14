@@ -6,34 +6,39 @@ from . import tariff_config as tc
 
 
 class UsageStats(object):
-    """ Get the energy stats for a time period, usually a single day
+    """ Get the energy stats for a single day
     """
 
     def __init__(self, usage):
 
-        self.consumption_peak = 0
-        self.consumption_offpeak = 0
-        self.demand_list = []
-
-        for r in usage:
-            reading_date = arrow.get(r[0])
-            usage_W = r[1]
-            usage_Wh = convert_w_to_wh(usage_W, hours=0.5)
-
-            if in_peak_period(reading_date):
-                self.consumption_peak += usage_Wh
-            else:
-                self.consumption_offpeak += usage_Wh
-
-            if in_peak_time(reading_date):
-                self.demand_list.append(usage_W)
-
-        self.demand_abs_peak = 0
-        self.demand_avg_peak = 0
-        if self.demand_list:
-            self.demand_abs_peak = max(self.demand_list)
-            self.demand_avg_peak = statistics.mean(self.demand_list)
+        peak, offpeak = daily_consumption(usage)
+        self.consumption_peak = peak
+        self.consumption_offpeak = offpeak
+        self.demand_avg_peak = average_daily_peak_demand(peak)
         self.consumption_total = self.consumption_peak + self.consumption_offpeak
+
+
+def average_daily_peak_demand(peak_usage_kWh):
+    """ Calculate the average daily peak demand in kW
+    """
+    peak_ratio = 1/6.5  # Peak period is 6.5 hrs
+    return peak_usage_kWh * peak_ratio
+
+
+def daily_consumption(day_data):
+    """ Get the energy stats for a single day
+
+    Pass through a list of daily data
+    (period_start, kWh)
+    """
+    consumption_peak = 0
+    consumption_offpeak = 0
+    for period_start, usage in day_data:
+        if in_peak_time(period_start):
+            consumption_peak += usage
+        else:
+            consumption_offpeak += usage
+    return consumption_peak, consumption_offpeak
 
 
 def get_power_data(meter_id, start_date, end_date):
@@ -64,7 +69,16 @@ def get_power_data(meter_id, start_date, end_date):
 
     for key in sorted(power.keys()):
         impW = convert_wh_to_w(power[key], hours=0.5)
-        yield [key, impW]
+        yield (key, impW)
+
+
+def get_consumption_data(meter_id, start_date, end_date):
+    """ Get consumption data for a meter
+    """
+    for r in get_energy_data(meter_id, start_date, end_date):
+        period_start = arrow.get(r.reading_date)
+        usage_kWh = r.imp
+        yield (period_start, usage_kWh)
 
 
 def get_energy_data(meter_id, start_date, end_date):

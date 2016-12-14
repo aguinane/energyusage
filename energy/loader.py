@@ -55,10 +55,12 @@ def import_meter_data(user_name, file_path):
             continue
 
         if row[1]:
-            imp = int(row[1])
-
-        if row[2]:
-            exp = int(row[2])
+            imp = float(row[1])
+        try:
+            if row[2]:
+                exp = float(row[2])
+        except IndexError:
+            exp = None
 
         if Energy.query.filter_by(user_id=user.id, reading_date=reading_date).first():
             # Record already exists

@@ -27,18 +27,18 @@ def manage():
         form.upload_file.data.save(file_path)
         new, skipped, failed = import_meter_data(current_user.username, file_path)
         if new > 0:
-            msg = str(new) + ' new readings added. '
+            msg = '{} new readings added.'.format(new)
             flash(msg, category='success')
         else:
             msg = 'No new readings could be added. '
             flash(msg, category='warning')
 
         if skipped > 0:
-            msg = str(skipped) + ' records already existed and were skipped.'
+            msg = '{} records already existed and were skipped.'.format(skipped)
             flash(msg, category='warning')
 
         if failed > 0:
-            msg = str(failed) + ' records were in the wrong format.'
+            msg = '{} records were in the wrong format.'.format(failed)
             flash(msg, category='danger')
 
         return redirect(url_for('manage'))
@@ -53,7 +53,7 @@ def export_data():
     return Response(export_meter_data(user_id),
                     mimetype="text/csv",
                     headers={"Content-disposition":
-                    "attachment; filename=data-export.csv"}
+                             "attachment; filename=data-export.csv"}
                     )
 
 
@@ -61,7 +61,8 @@ def export_data():
 def signup():
     form = UsernamePasswordForm()
     if form.validate_on_submit():
-        user = User(username=form.username.data.lower(), password=form.password.data)
+        user = User(username=form.username.data.lower(),
+                    password=form.password.data)
         try:
             db.session.add(user)
             db.session.commit()
@@ -80,7 +81,8 @@ def signin():
     if form.validate_on_submit():
         user = User.query.filter_by(username=form.username.data.lower()).first()
         if user is None:
-            flash('No user "' + str(form.username.data.lower()) + '" found!', category='danger')
+            flash('No user called {} found!'.format(form.username.data.lower()),
+                  category='danger')
             return redirect(url_for('signin'))
         if user.is_correct_password(form.password.data):
             login_user(user)
@@ -99,7 +101,7 @@ def signout():
 @app.route('/usage/')
 @login_required
 def usage():
-    return redirect(url_for('usage_all'))
+    return redirect(url_for('usage_month'))
 
 
 @app.route('/usage/day/', methods=["GET", "POST"])
@@ -118,7 +120,7 @@ def usage_day():
     try:
         report_date = request.values['report_date']
     except KeyError:
-        report_date = str(last_record.year) + '-' + str(last_record.month) + '-' + str(last_record.day)
+        report_date = '{}-{}-{}'.format(last_record.year, last_record.month, last_record.day)
         return redirect(url_for('usage_day', report_date=report_date))
 
     # Get end of reporting period
@@ -159,7 +161,7 @@ def usage_month():
     try:
         report_date = request.values['report_date']
     except KeyError:
-        report_date = str(last_record.year) + '-' + str(last_record.month) + '-01'
+        report_date = '{}-{}-01'.format(last_record.year, last_record.month)
         return redirect(url_for('usage_month', report_date=report_date))
 
     # Get end of reporting period
@@ -191,9 +193,9 @@ def usage_month():
                            )
 
 
-@app.route('/usage/all/', methods=["GET", "POST"])
+@app.route('/billing/', methods=["GET", "POST"])
 @login_required
-def usage_all():
+def billing():
     # Get user details
     user_id = User.query.filter_by(username=current_user.username).first().id
     first_record, last_record, num_days = get_user_stats(user_id)
@@ -216,7 +218,7 @@ def usage_all():
     plot_settings = calculate_plot_settings(report_period='month')
 
 
-    return render_template('usage_all.html', meter_id = user_id,
+    return render_template('billing.html', meter_id = user_id,
                            report_date = report_date,
                            t11=t11, t12=t12, t14=t14,
                            plot_settings=plot_settings,
@@ -310,10 +312,10 @@ def get_navigation_range(report_period, rs, first_record, last_record):
         prev_date_enabled = True
 
     period_nav = {'prev_date': prev_date.format('YYYY-MM-DD'),
-        'prev_enabled': prev_date_enabled,
-        'next_date': next_date.format('YYYY-MM-DD'),
-        'next_enabled': next_date_enabled
-        }
+                  'prev_enabled': prev_date_enabled,
+                  'next_date': next_date.format('YYYY-MM-DD'),
+                  'next_enabled': next_date_enabled
+                  }
 
     return period_nav
 
