@@ -17,10 +17,6 @@
         <a class="btn btn-secondary nav-link"
         href="{{ url_for('usage_month', report_date=report_date) }}" role="button">Month</a>
     </li>
-    <li class="nav-item">
-        <a class="btn btn-secondary nav-link"
-        href="{{ url_for('usage_all') }}" role="button">All</a>
-    </li>
 
     <li class="nav-item float-xs-right">
         <a class="btn btn-secondary {% if not period_nav.next_enabled %}disabled{% endif %}"

@@ -99,7 +99,7 @@ def signout():
 @app.route('/usage/')
 @login_required
 def usage():
-    return redirect(url_for('usage_all'))
+    return redirect(url_for('usage_month'))
 
 
 @app.route('/usage/day/', methods=["GET", "POST"])
@@ -191,9 +191,9 @@ def usage_month():
                            )
 
 
-@app.route('/usage/all/', methods=["GET", "POST"])
+@app.route('/billing/', methods=["GET", "POST"])
 @login_required
-def usage_all():
+def billing():
     # Get user details
     user_id = User.query.filter_by(username=current_user.username).first().id
     first_record, last_record, num_days = get_user_stats(user_id)
@@ -216,7 +216,7 @@ def usage_all():
     plot_settings = calculate_plot_settings(report_period='month')
 
 
-    return render_template('usage_all.html', meter_id = user_id,
+    return render_template('billing.html', meter_id = user_id,
                            report_date = report_date,
                            t11=t11, t12=t12, t14=t14,
                            plot_settings=plot_settings,
