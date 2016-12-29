@@ -54,13 +54,13 @@
     <h4>Consumption Stats</h4>
     <dl class="row">
         <dt class="col-sm-6">Peak</dt>
-        <dd class="col-sm-6">{{ t12.peak_consumption_kWh|round(2) }} kWh</dd>
+        <dd class="col-sm-6">{{ (usage_data.daily_usage[report_date].consumption_peak/1000)|round(2) }} kWh</dd>
 
         <dt class="col-sm-6">Off-Peak</dt>
-        <dd class="col-sm-6">{{ t12.offpeak_consumption_kWh|round(2) }} kWh</dd>
+        <dd class="col-sm-6">{{ (usage_data.daily_usage[report_date].consumption_offpeak/1000)|round(2) }} kWh</dd>
 
         <dt class="col-sm-6">Total</dt>
-        <dd class="col-sm-6">{{ (t12.offpeak_consumption_kWh+t12.offpeak_consumption_kWh)|round(2) }} kWh</dd>
+        <dd class="col-sm-6">{{ (usage_data.daily_usage[report_date].consumption_total/1000)|round(2) }} kWh</dd>
     </dl>
     </div><!-- /card-->
     </div><!-- /col-->
@@ -70,7 +70,7 @@
     <h4>Demand Stats</h4>
     <dl class="row">
         <dt class="col-sm-6">Average Peak Demand</dt>
-        <dd class="col-sm-6">{{ (t14.peak_demand_kW)|round(2) }} kW</dd>
+        <dd class="col-sm-6">{{ usage_data.daily_usage[report_date].demand_avg_peak|round(2) }} kW</dd>
     </dl>
 
     </div><!-- /card-->

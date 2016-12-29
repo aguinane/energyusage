@@ -14,7 +14,7 @@ class UsageStats(object):
         peak, offpeak = daily_consumption(usage)
         self.consumption_peak = peak
         self.consumption_offpeak = offpeak
-        self.demand_avg_peak = average_daily_peak_demand(peak)
+        self.demand_avg_peak = average_daily_peak_demand(peak/1000)
         self.consumption_total = self.consumption_peak + self.consumption_offpeak
 
 
