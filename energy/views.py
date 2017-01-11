@@ -8,7 +8,7 @@ from .models import User, get_data_range
 from .loader import import_meter_data, export_meter_data
 from .forms import UsernamePasswordForm, FileForm
 from .charts import get_energy_chart_data, get_daily_chart_data
-from .tariff import GeneralSupplyTariff, TimeofUseTariff, DemandTariff
+from .tariff import DailyUsage, GeneralSupplyTariff, TimeofUseTariff, DemandTariff
 import sqlalchemy
 
 
@@ -129,14 +129,12 @@ def usage_day():
     re = rs.replace(days=+1)
     period_desc = rs.format('ddd DD MMM YY')
     period_nav = get_navigation_range('day', rs, first_record, last_record)
-
-    t11, t12, t14 = calculate_usage_costs(user_id, rs, re)
     plot_settings = calculate_plot_settings(report_period='day')
 
-
+    usage_data = DailyUsage(user_id, rs, re)
     return render_template('usage_day.html', meter_id = user_id,
                            report_period = 'day', report_date=report_date,
-                           t11=t11, t12=t12, t14=t14,
+                           usage_data=usage_data,
                            period_desc = period_desc,
                            period_nav = period_nav,
                            plot_settings=plot_settings,
