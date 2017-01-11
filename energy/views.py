@@ -120,7 +120,9 @@ def usage_day():
     try:
         report_date = request.values['report_date']
     except KeyError:
-        report_date = '{}-{}-{}'.format(last_record.year, last_record.month, last_record.day)
+        report_date = '{}-{}-{}'.format(str(last_record.year).zfill(2),
+                                        str(last_record.month).zfill(2),
+                                        str(last_record.day).zfill(2))
         return redirect(url_for('usage_day', report_date=report_date))
 
     # Get end of reporting period
@@ -159,7 +161,8 @@ def usage_month():
     try:
         report_date = request.values['report_date']
     except KeyError:
-        report_date = '{}-{}-01'.format(last_record.year, last_record.month)
+        report_date = '{}-{}-01'.format(str(last_record.year).zfill(2),
+                                        str(last_record.month).zfill(2))
         return redirect(url_for('usage_month', report_date=report_date))
 
     # Get end of reporting period
