@@ -133,10 +133,10 @@ class DemandTariff(object):
             peak_demands.append(du.daily_usage[day].demand_avg_peak)
 
         if peak_demands:
-            self.peak_demand_kW = statistics.mean(peak_demands) / 1000
+            self.peak_demand_kW = statistics.mean(peak_demands)
         else:
             self.peak_demand_kW = 0
-
+        print(self.peak_demand_kW)
         # Determine rate depending on if peak season
         try:
             peak_day = top_four_days[0]
@@ -144,7 +144,7 @@ class DemandTariff(object):
             peak_day = arrow.get(start_date).format('YYYY-MM-DD')
         self.peak_season = in_peak_season(peak_day)
         if self.peak_season:
-            self.demand_charge = self.peak_demand_kW * self.demand_charge_peak
+            self.demand_charge = self.peak_demand_kW * self.demand_charge_peak * 100  # in cents
         else:
             # The  off  peak  demand  quantity  is  subject  to  a  minimum
             # chargeable  demand  of  3kW
