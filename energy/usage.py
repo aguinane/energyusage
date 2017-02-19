@@ -33,8 +33,8 @@ def daily_consumption(day_data):
     """
     consumption_peak = 0
     consumption_offpeak = 0
-    for period_start, usage in day_data:
-        if in_peak_time(period_start):
+    for period_start, period_end, usage in day_data:
+        if in_peak_time(period_end):
             consumption_peak += usage
         else:
             consumption_offpeak += usage
@@ -76,9 +76,10 @@ def get_consumption_data(meter_id, start_date, end_date):
     """ Get consumption data for a meter
     """
     for r in get_energy_data(meter_id, start_date, end_date):
-        period_start = arrow.get(r.reading_date)
+        period_start = r.reading_date - datetime.timedelta(seconds=r.interval*60)
+        period_end = r.reading_date
         usage_kWh = r.imp
-        yield (period_start, usage_kWh)
+        yield (period_start, period_end, usage_kWh)
 
 
 def get_energy_data(meter_id, start_date, end_date):
