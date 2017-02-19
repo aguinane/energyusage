@@ -4,29 +4,21 @@ from datetime import timedelta, date
 import calendar
 import statistics
 from . import tariff_config as tc
-from .usage import UsageStats, get_consumption_data, in_peak_season
+from .usage import UsageStats, get_consumption_data, in_peak_season, average_daily_peak_demand
+from qldtariffs import get_daily_usages
 
 
 class DailyUsage(object):
     """ Used to calculate daily energy costs for a period
     """
+
     def __init__(self, meter_id, start_date, end_date):
         self.meter_id = meter_id
         self.start_date = arrow.get(start_date).date()
         self.end_date = arrow.get(start_date).date()
-        daily_usage = dict()
-        for single_date in self.daterange(start_date, end_date):
-            sd = arrow.get(single_date)
-            ed = sd.replace(days=+1)
-            usage = get_consumption_data(self.meter_id, sd.datetime, ed.datetime)
-            daily_usage[single_date.strftime("%Y-%m-%d")] = UsageStats(usage)
-        self.daily_usage = daily_usage
-
-    def daterange(self, start_date, end_date):
-        """ List all days between two date objects
-        """
-        for n in range(int ((end_date - start_date).days)):
-            yield start_date + timedelta(n)
+        self.daily_usage = get_daily_usages(get_consumption_data(
+            self.meter_id,  arrow.get(start_date).datetime,  arrow.get(end_date).datetime))
+        print(self.daily_usage)
 
 
 class GeneralSupplyTariff(object):
@@ -47,7 +39,7 @@ class GeneralSupplyTariff(object):
         self.consumption_kWh = 0
         du = DailyUsage(self.meter_id, start_date, end_date)
         for day in du.daily_usage.keys():
-            self.consumption_kWh += du.daily_usage[day].consumption_total / 1000
+            self.consumption_kWh += du.daily_usage[day].all / 1000
         self.consumption_charge = self.consumption_rate * self.consumption_kWh
         self.total_cost = self.supply_charge + self.consumption_charge
         return self.total_cost
@@ -74,18 +66,15 @@ class TimeofUseTariff(object):
 
         du = DailyUsage(self.meter_id, start_date, end_date)
         for day in du.daily_usage.keys():
-            self.peak_consumption_kWh += du.daily_usage[day].consumption_peak / 1000
-            self.offpeak_consumption_kWh += du.daily_usage[day].consumption_offpeak / 1000
-            if not in_peak_season(day):
-                # Peak only applies in certain months
-                self.offpeak_consumption_kWh += self.peak_consumption_kWh
-                self.peak_consumption_kWh = 0
+            self.peak_consumption_kWh += du.daily_usage[day].peak / 1000
+            self.offpeak_consumption_kWh += du.daily_usage[day].offpeak / 1000
 
         self.peak_consumption_charge = self.consumption_rate_peak * self.peak_consumption_kWh
         self.offpeak_consumption_charge = self.consumption_rate_offpeak * \
             self.offpeak_consumption_kWh
 
-        self.total_cost = self.supply_charge + self.peak_consumption_charge + self.offpeak_consumption_charge
+        self.total_cost = self.supply_charge + \
+            self.peak_consumption_charge + self.offpeak_consumption_charge
         return self.total_cost
 
 
@@ -109,14 +98,14 @@ class DemandTariff(object):
 
         du = DailyUsage(self.meter_id, start_date, end_date)
         for day in du.daily_usage.keys():
-            self.consumption_kWh += du.daily_usage[day].consumption_total / 1000
+            self.consumption_kWh += du.daily_usage[day].all / 1000
 
         self.consumption_charge = self.consumption_rate * self.consumption_kWh
 
         # Calculate daily peak
         peak_days = dict()
         for day in du.daily_usage.keys():
-            avg_peak = du.daily_usage[day].demand_avg_peak
+            avg_peak = average_daily_peak_demand(du.daily_usage[day].demand)
             peak_days[day] = avg_peak
         self.peak_days = peak_days
 
@@ -130,7 +119,7 @@ class DemandTariff(object):
         # Calculate average demand
         peak_demands = []
         for day in top_four_days:
-            peak_demands.append(du.daily_usage[day].demand_avg_peak)
+            peak_demands.append(peak_days[day])
 
         if peak_demands:
             self.peak_demand_kW = statistics.mean(peak_demands)
@@ -144,7 +133,8 @@ class DemandTariff(object):
             peak_day = arrow.get(start_date).format('YYYY-MM-DD')
         self.peak_season = in_peak_season(peak_day)
         if self.peak_season:
-            self.demand_charge = self.peak_demand_kW * self.demand_charge_peak * 100  # in cents
+            self.demand_charge = self.peak_demand_kW * \
+                self.demand_charge_peak * 100  # in cents
         else:
             # The  off  peak  demand  quantity  is  subject  to  a  minimum
             # chargeable  demand  of  3kW
@@ -157,9 +147,9 @@ class DemandTariff(object):
         days_in_month = calendar.monthrange(
             start_date.year, start_date.month)[1]
         self.demand_charge = self.demand_charge * (num_days / days_in_month)
-        self.total_cost = self.supply_charge + self.consumption_charge + self.demand_charge
+        self.total_cost = self.supply_charge + \
+            self.consumption_charge + self.demand_charge
         return self.total_cost
-
 
 
 def get_total_consumption(meter_id, start_date, end_date):

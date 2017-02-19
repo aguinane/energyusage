@@ -3,7 +3,7 @@ import datetime
 import statistics
 from .models import Energy
 from . import tariff_config as tc
-
+from qldtariffs import get_daily_usages
 
 class UsageStats(object):
     """ Get the energy stats for a single day
@@ -14,7 +14,7 @@ class UsageStats(object):
         peak, offpeak = daily_consumption(usage)
         self.consumption_peak = peak
         self.consumption_offpeak = offpeak
-        self.demand_avg_peak = average_daily_peak_demand(peak/1000)
+        self.demand_avg_peak = average_daily_peak_demand(peak)
         self.consumption_total = self.consumption_peak + self.consumption_offpeak
 
 
@@ -78,7 +78,7 @@ def get_consumption_data(meter_id, start_date, end_date):
     for r in get_energy_data(meter_id, start_date, end_date):
         period_start = r.reading_date - datetime.timedelta(seconds=r.interval*60)
         period_end = r.reading_date
-        usage_kWh = r.imp
+        usage_kWh = r.imp/1000
         yield (period_start, period_end, usage_kWh)
 
 
