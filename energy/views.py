@@ -8,8 +8,13 @@ from .models import User, get_data_range
 from .loader import import_meter_data, export_meter_data
 from .forms import UsernamePasswordForm, FileForm
 from .charts import get_energy_chart_data, get_daily_chart_data
-from .tariff import GeneralSupplyTariff, TimeofUseTariff, DemandTariff
 import sqlalchemy
+from qldtariffs import get_daily_usages, get_monthly_usages
+from qldtariffs import electricity_charges_general
+from qldtariffs import electricity_charges_tou
+from qldtariffs import electricity_charges_tou_demand
+
+from .usage import get_consumption_data, average_daily_peak_demand
 
 
 @app.route('/')
@@ -22,10 +27,11 @@ def index():
 def manage():
     form = FileForm()
     if form.validate_on_submit():
-        filename = secure_filename(current_user.username+'.csv')
+        filename = secure_filename(current_user.username + '.csv')
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         form.upload_file.data.save(file_path)
-        new, skipped, failed = import_meter_data(current_user.username, file_path)
+        new, skipped, failed = import_meter_data(
+            current_user.username, file_path)
         if new > 0:
             msg = '{} new readings added.'.format(new)
             flash(msg, category='success')
@@ -34,7 +40,8 @@ def manage():
             flash(msg, category='warning')
 
         if skipped > 0:
-            msg = '{} records already existed and were skipped.'.format(skipped)
+            msg = '{} records already existed and were skipped.'.format(
+                skipped)
             flash(msg, category='warning')
 
         if failed > 0:
@@ -43,7 +50,6 @@ def manage():
 
         return redirect(url_for('manage'))
     return render_template('manage.html', form=form)
-
 
 
 @app.route('/export')
@@ -79,7 +85,8 @@ def signup():
 def signin():
     form = UsernamePasswordForm()
     if form.validate_on_submit():
-        user = User.query.filter_by(username=form.username.data.lower()).first()
+        user = User.query.filter_by(
+            username=form.username.data.lower()).first()
         if user is None:
             flash('No user called {} found!'.format(form.username.data.lower()),
                   category='danger')
@@ -107,7 +114,7 @@ def usage():
 @app.route('/usage/day/', methods=["GET", "POST"])
 @login_required
 def usage_day():
-
+    """ Get daily usage stats """
     # Get user details
     user_id = User.query.filter_by(username=current_user.username).first().id
     first_record, last_record, num_days = get_user_stats(user_id)
@@ -120,7 +127,9 @@ def usage_day():
     try:
         report_date = request.values['report_date']
     except KeyError:
-        report_date = '{}-{}-{}'.format(last_record.year, last_record.month, last_record.day)
+        report_date = '{}-{}-{}'.format(str(last_record.year).zfill(2),
+                                        str(last_record.month).zfill(2),
+                                        str(last_record.day).zfill(2))
         return redirect(url_for('usage_day', report_date=report_date))
 
     # Get end of reporting period
@@ -129,26 +138,26 @@ def usage_day():
     re = rs.replace(days=+1)
     period_desc = rs.format('ddd DD MMM YY')
     period_nav = get_navigation_range('day', rs, first_record, last_record)
-
-    t11, t12, t14 = calculate_usage_costs(user_id, rs, re)
     plot_settings = calculate_plot_settings(report_period='day')
 
+    readings = get_consumption_data(user_id, rs.datetime, re.datetime)
+    usage_data = get_daily_usages(readings, 'Ergon', 'T14')[rs.date()]
 
-    return render_template('usage_day.html', meter_id = user_id,
-                           report_period = 'day', report_date=report_date,
-                           t11=t11, t12=t12, t14=t14,
-                           period_desc = period_desc,
-                           period_nav = period_nav,
+    return render_template('usage_day.html', meter_id=user_id,
+                           report_period='day', report_date=report_date,
+                           usage_data=usage_data,
+                           period_desc=period_desc,
+                           period_nav=period_nav,
                            plot_settings=plot_settings,
-                           start_date = rs.format('YYYY-MM-DD'),
-                           end_date = re.format('YYYY-MM-DD')
-                           )
+                           start_date=rs.format('YYYY-MM-DD'),
+                           end_date=re.format('YYYY-MM-DD')
+                          )
 
 
 @app.route('/usage/month/', methods=["GET", "POST"])
 @login_required
 def usage_month():
-
+    """ Get monthly usage details """
     # Get user details
     user_id = User.query.filter_by(username=current_user.username).first().id
     first_record, last_record, num_days = get_user_stats(user_id)
@@ -161,7 +170,8 @@ def usage_month():
     try:
         report_date = request.values['report_date']
     except KeyError:
-        report_date = '{}-{}-01'.format(last_record.year, last_record.month)
+        report_date = '{}-{}-01'.format(str(last_record.year).zfill(2),
+                                        str(last_record.month).zfill(2))
         return redirect(url_for('usage_month', report_date=report_date))
 
     # Get end of reporting period
@@ -177,19 +187,24 @@ def usage_month():
     num_days = (re - rs).days
     period_desc = rs.format('MMM YY')
 
+    readings = list(get_consumption_data(user_id, rs.datetime, re.datetime))
+    usage_data = get_monthly_usages(readings, 'Ergon', 'T14')[(rs.year, rs.month)]
 
-    t11, t12, t14 = calculate_usage_costs(user_id, rs, re)
+    t11 = electricity_charges_general('Ergon', usage_data.days, usage_data.all)
+    t12 = electricity_charges_tou('Ergon', usage_data.days, usage_data.peak, 0, usage_data.offpeak)
+    t14 = electricity_charges_tou_demand('Ergon', usage_data.days, usage_data.all, usage_data.demand)
+
     plot_settings = calculate_plot_settings(report_period='month')
 
-
-    return render_template('usage_month.html', meter_id = user_id,
-                           report_period = 'month', report_date=report_date,
+    return render_template('usage_month.html', meter_id=user_id,
+                           report_period='month', report_date=report_date,
+                           usage_data=usage_data,
+                           period_desc=period_desc,
                            t11=t11, t12=t12, t14=t14,
-                           period_desc = period_desc,
-                           period_nav = period_nav, num_days=num_days,
+                           period_nav=period_nav, num_days=num_days,
                            plot_settings=plot_settings,
-                           start_date = rs.format('YYYY-MM-DD'),
-                           end_date = re.format('YYYY-MM-DD')
+                           start_date=rs.format('YYYY-MM-DD'),
+                           end_date=re.format('YYYY-MM-DD')
                            )
 
 
@@ -208,22 +223,20 @@ def billing():
     try:
         report_date = request.values['report_date']
     except KeyError:
-        report_date = str(last_record.year) + '-' + str(last_record.month) + '-' + str(last_record.day)
+        report_date = str(last_record.year) + '-' + \
+            str(last_record.month) + '-' + str(last_record.day)
 
     rs = arrow.get(first_record)
     re = arrow.get(last_record)
     num_days = (re - rs).days
 
-    t11, t12, t14 = calculate_usage_costs(user_id, rs, re)
     plot_settings = calculate_plot_settings(report_period='month')
 
-
-    return render_template('billing.html', meter_id = user_id,
-                           report_date = report_date,
-                           t11=t11, t12=t12, t14=t14,
+    return render_template('billing.html', meter_id=user_id,
+                           report_date=report_date,
                            plot_settings=plot_settings,
-                           start_date = rs.format('YYYY-MM-DD'),
-                           end_date = re.format('YYYY-MM-DD')
+                           start_date=rs.format('YYYY-MM-DD'),
+                           end_date=re.format('YYYY-MM-DD')
                            )
 
 
@@ -240,7 +253,8 @@ def energy_data(meter_id=None):
         return 'json chart api'
     else:
         params = request.args.to_dict()
-        start_date = arrow.get(params['start_date']).replace(minutes=+10).datetime
+        start_date = arrow.get(params['start_date']).replace(
+            minutes=+10).datetime
         end_date = arrow.get(params['end_date']).datetime
         flotData = get_energy_chart_data(meter_id, start_date, end_date)
         return jsonify(flotData)
@@ -254,7 +268,8 @@ def daily_data(meter_id=None):
         return 'json chart api'
     else:
         params = request.args.to_dict()
-        start_date = arrow.get(params['start_date']).replace(minutes=+10).datetime
+        start_date = arrow.get(params['start_date']).replace(
+            minutes=+10).datetime
         end_date = arrow.get(params['end_date']).datetime
         flotData = get_daily_chart_data(meter_id, start_date, end_date)
         return jsonify(flotData)
@@ -270,21 +285,6 @@ def get_user_stats(user_id):
     if num_days < 1:
         num_days = (last_record - first_record).seconds * 60 * 60 * 24
     return first_record, last_record, num_days
-
-
-def calculate_usage_costs(user_id, rs, re):
-    """ Calculate usage costs
-    """
-    t11 = GeneralSupplyTariff(user_id)
-    t11.calculate_bill(start_date=rs.datetime, end_date=re.datetime)
-
-    t12 = TimeofUseTariff(user_id)
-    t12.calculate_bill(start_date=rs.datetime, end_date=re.datetime)
-
-    t14 = DemandTariff(user_id)
-    t14.calculate_bill(start_date=rs.datetime, end_date=re.datetime)
-
-    return t11, t12, t14
 
 
 def get_navigation_range(report_period, rs, first_record, last_record):

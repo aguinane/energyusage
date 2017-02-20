@@ -1,7 +1,7 @@
 import arrow
-from .models import Energy
-from .usage import get_energy_data, convert_wh_to_w, get_power_data, in_peak_time
-from .tariff import DailyUsage
+from qldtariffs import get_daily_usages
+from .usage import get_energy_data, get_power_data
+from .usage import get_consumption_data, average_daily_peak_demand
 
 
 def get_energy_chart_data(meter_id, start_date, end_date):
@@ -12,9 +12,9 @@ def get_energy_chart_data(meter_id, start_date, end_date):
     chartdata['consumption'] = []
 
     for r in get_energy_data(meter_id, start_date, end_date):
-        dTime = arrow.get(r.reading_date)
+        dTime = arrow.get(r.reading_start)
         ts = int(dTime.timestamp * 1000)
-        impWh = r.imp
+        impWh = r.value
         chartdata['consumption'].append([ts, impWh])
 
     chartdata['power'] = []
@@ -37,20 +37,23 @@ def get_daily_chart_data(meter_id, start_date, end_date):
     """ Return json object for flot chart
     """
     chartdata = {}
-    chartdata['label'] = 'Daily Usage'
     chartdata['consumption'] = []
     chartdata['consumption_peak'] = []
     chartdata['consumption_offpeak'] = []
+    chartdata['demand'] = []
 
-    du = DailyUsage(meter_id, start_date, end_date)
-    for day in du.daily_usage.keys():
+    readings = list(get_consumption_data(meter_id, start_date, end_date))
+    usage_data = get_daily_usages(readings, 'Ergon', 'T14')
+    for day in usage_data:
         dTime = arrow.get(day).replace(days=+1)
         ts = int(dTime.timestamp * 1000)
-        usage_total = du.daily_usage[day].consumption_total / 1000
-        usage_peak = du.daily_usage[day].consumption_peak / 1000
-        usage_offpeak = du.daily_usage[day].consumption_offpeak / 1000
+        usage_total = usage_data[day].all
+        usage_peak = usage_data[day].peak
+        usage_offpeak = usage_data[day].offpeak
+        demand = average_daily_peak_demand(usage_data[day].demand)
         chartdata['consumption'].append([ts, usage_total])
         chartdata['consumption_peak'].append([ts, usage_peak])
         chartdata['consumption_offpeak'].append([ts, usage_offpeak])
+        chartdata['demand'].append([ts, demand])
 
     return chartdata

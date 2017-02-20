@@ -38,14 +38,22 @@
     </ul><!-- /nav-pills-->
 
   </div><!-- /card-block-->
+</div><!-- /card-->
 
+<div class="card">
   <div class="card-block">
       <div class="chart-container">
         <div id="daily_energy" class="chart-placeholder" style="max-width: 100%; height: 150px;"></div>
       </div>
+      <figcaption class="figure-caption">Average daily usage is {{ (usage_data.all / usage_data.days)|round(1) }} kW/day.</figcaption>
+  </div><!-- /card-block-->
+  <div class="card-block">
+      <div class="chart-container">
+        <div id="daily_usage" class="chart-placeholder" style="max-width: 100%; height: 150px;"></div>
+      </div>
+      <figcaption class="figure-caption">Average demand is between 15:00 to 21:30. Chargeable demand is average of top 4 days.</figcaption>
   </div><!-- /card-block-->
 </div><!-- /card-->
-
 
 <div class="card card-block">
     <h3>Tariff Comparison</h3>
@@ -62,38 +70,45 @@
     <tbody>
     <tr>
         <td>Service Fee</td>
-        <td>{{ num_days }} days</td>
-        <td>${{ (t11.supply_charge/100)|round(2) }}</td>
-        <td>${{ (t12.supply_charge/100)|round(2) }}</td>
-        <td>${{ (t14.supply_charge/100)|round(2) }}</td>
+        <td>{{ usage_data.days }} days</td>
+        <td>${{ (t11.supply_charge.cost_incl_gst/100)|round(2) }}</td>
+        <td>${{ (t12.supply_charge.cost_incl_gst/100)|round(2) }}</td>
+        <td>${{ (t14.supply_charge.cost_incl_gst/100)|round(2) }}</td>
     </tr>
     <tr>
         <td>Demand Charge</td>
-        <td>{{ (t14.peak_demand_kW)|round(2) }} kW</td>
+        <td>{{ (usage_data.demand)|round(3) }} kW</td>
         <td>-</td>
         <td>-</td>
-        <td>${{ (t14.demand_charge/100)|round(2) }}</td>
+        <td>${{ (t14.demand.cost_incl_gst/100)|round(2) }}</td>
+    </tr>
+    <tr>
+        <td>All Consumption</td>
+        <td>{{ (usage_data.all)|round(2) }} kWh</td>
+        <td>${{ (t11.all_usage.cost_incl_gst/100)|round(2) }}</td>
+        <td>-</td>
+        <td>${{ (t14.all_usage.cost_incl_gst/100)|round(2) }}</td>
     </tr>
     <tr>
         <td>Peak Consumption</td>
-        <td>{{ t12.peak_consumption_kWh|round(2) }} kWh</td>
+        <td>{{ (usage_data.peak)|round(2) }} kWh</td>
         <td>-</td>
-        <td>${{ (t12.peak_consumption_charge/100)|round(2) }}</td>
+        <td>${{ (t12.peak.cost_incl_gst/100)|round(2) }}</td>
         <td>-</td>
     </tr>
     <tr>
         <td>Off-Peak Consumption</td>
-        <td>{{ t12.offpeak_consumption_kWh|round(2) }} kWh</td>
-        <td>${{ (t11.consumption_charge/100)|round(2) }}</td>
-        <td>${{ (t12.offpeak_consumption_charge/100)|round(2) }}</td>
-        <td>${{ (t14.consumption_charge/100)|round(2) }}</td>
+        <td>{{ (usage_data.offpeak)|round(2) }} kWh</td>
+        <td>-</td>
+        <td>${{ (t12.offpeak.cost_incl_gst/100)|round(2) }}</td>
+        <td>-</td>
     </tr>
     <tr>
         <td>Total</td>
         <td></td>
-        <td>${{ (t11.total_cost/100)|round(2) }}</td>
-        <td>${{ (t12.total_cost/100)|round(2) }}</td>
-        <td>${{ (t14.total_cost/100)|round(2) }}</td>
+        <td>${{ (t11.total_charges.cost_incl_gst/100)|round(2) }}</td>
+        <td>${{ (t12.total_charges.cost_incl_gst/100)|round(2) }}</td>
+        <td>${{ (t14.total_charges.cost_incl_gst/100)|round(2) }}</td>
     </tr>
     </tbody>
     </table>
@@ -143,22 +158,13 @@ $(document).ready(function(){
                 plotarea,
                 //plot data
                 [
-                    { data: json.consumption_offpeak,
+                    { data: json.consumption,
                       bars: { show: true,
                               fill: true,
                               align: 'right',
                               barWidth: 86400000
                             },
-                      label: "Daily Peak Consumption (kWh)"
-                    },
-                    { data: json.consumption_peak,
-                      bars: { show: true,
-                              fill: true,
-                              align: 'right',
-                              barWidth: 86400000
-                            },
-                      color: "#bf2f40",
-                      label: "Daily Off-Peak Consumption (kWh)"
+                      label: "Usage (kWh)"
                     }
                 ],
                 // plot settings
@@ -191,6 +197,106 @@ $(document).ready(function(){
 
     var previousPoint = null;
     $("#daily_energy").bind("plothover", function (event, pos, item) {
+        $("#x").text(pos.x.toFixed(2));
+        $("#y").text(pos.y.toFixed(2));
+
+        if (item) {
+            if (previousPoint != item.dataIndex) {
+                previousPoint = item.dataIndex;
+
+                $("#tooltip").remove();
+                var x = item.datapoint[0].toFixed(2),
+                    y = item.datapoint[1].toFixed(2)
+                    showTooltip(item.pageX, item.pageY,
+                            item.series.label + ": " + y);
+            }
+        }
+        else {
+            $("#tooltip").remove();
+            previousPoint = null;
+        }
+
+    });
+});
+</script>
+
+
+<script language="javascript" type="text/javascript">
+$(document).ready(function(){
+    function weekendAreas(axes) {
+
+            var markings = [],
+                d = new Date(axes.xaxis.min);
+
+            // go to the first Saturday
+
+            d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 1) % 7))
+            d.setUTCSeconds(0);
+            d.setUTCMinutes(0);
+            d.setUTCHours(0);
+
+            var i = d.getTime();
+
+            // when we don't set yaxis, the rectangle automatically
+            // extends to infinity upwards and downwards
+
+            do {
+                markings.push({ xaxis: { from: i, to: i + 2 * 24 * 60 * 60 * 1000 }, color: "#F3F3F3" });
+                i += 7 * 24 * 60 * 60 * 1000;
+            } while (i < axes.xaxis.max);
+
+            return markings;
+        }
+
+    $.getJSON("{{ url_for('daily_data', meter_id=meter_id, start_date=start_date, end_date=end_date)|safe }}", function(json) {
+       //success - data loaded, now use plot:
+       var plotarea = $("#daily_usage");
+
+       // Create plot object
+       var plot = $.plot(
+                //plot area
+                plotarea,
+                //plot data
+                [
+                    { data: json.demand,
+                      bars: { show: true,
+                              fill: true,
+                              align: 'right',
+                              barWidth: 86400000
+                            },
+                      label: "Demand (kW)"
+                    }
+                ],
+                // plot settings
+                {
+                    series: {stack: true},
+                    grid: {hoverable: true,
+                           clickable: true,
+                           markings: weekendAreas
+                          },
+                    yaxis: {label: "Events"},
+                    xaxis: {mode: "time",
+                            minTickSize: [1, "{{ plot_settings.minTickSize }}"]
+                            }
+                }
+       );
+    });
+
+    function showTooltip(x, y, contents) {
+        $('<div id="tooltip">' + contents + '</div>').css( {
+            position: 'absolute',
+            display: 'none',
+            top: y + 5,
+            left: x + 5,
+            border: '1px solid #fdd',
+            padding: '2px',
+            'background-color': '#fee',
+            opacity: 0.80
+        }).appendTo("body").fadeIn(200);
+    }
+
+    var previousPoint = null;
+    $("#daily_usage").bind("plothover", function (event, pos, item) {
         $("#x").text(pos.x.toFixed(2));
         $("#y").text(pos.y.toFixed(2));
 
