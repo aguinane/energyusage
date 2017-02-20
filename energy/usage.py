@@ -1,21 +1,6 @@
-import arrow
 import datetime
-import statistics
+import arrow
 from .models import Energy
-from . import tariff_config as tc
-from qldtariffs import get_daily_usages
-
-class UsageStats(object):
-    """ Get the energy stats for a single day
-    """
-
-    def __init__(self, usage):
-
-        peak, offpeak = daily_consumption(usage)
-        self.consumption_peak = peak
-        self.consumption_offpeak = offpeak
-        self.demand_avg_peak = average_daily_peak_demand(peak)
-        self.consumption_total = self.consumption_peak + self.consumption_offpeak
 
 
 def average_daily_peak_demand(peak_usage_kWh):
@@ -23,22 +8,6 @@ def average_daily_peak_demand(peak_usage_kWh):
     """
     peak_ratio = 1/6.5  # Peak period is 6.5 hrs
     return peak_usage_kWh * peak_ratio
-
-
-def daily_consumption(day_data):
-    """ Get the energy stats for a single day
-
-    Pass through a list of daily data
-    (period_start, kWh)
-    """
-    consumption_peak = 0
-    consumption_offpeak = 0
-    for period_start, period_end, usage in day_data:
-        if in_peak_time(period_end):
-            consumption_peak += usage
-        else:
-            consumption_offpeak += usage
-    return consumption_peak, consumption_offpeak
 
 
 def get_power_data(meter_id, start_date, end_date):
@@ -89,45 +58,6 @@ def get_energy_data(meter_id, start_date, end_date):
     readings = readings.filter(Energy.reading_date >= start_date)
     readings = readings.filter(Energy.reading_date <= end_date).all()
     return readings
-
-
-def in_peak_period(reading_date):
-    """ Deterime if reading is in peak period
-    """
-    if in_peak_season(reading_date, peak_months=tc.PEAK_MONTHS):
-        if in_peak_time(reading_date, peak_start=tc.PEAK_WINDOW_START, peak_end=tc.PEAK_WINDOW_END):
-            return True
-        else:
-            return False
-    else:
-        return False
-
-
-def in_peak_season(reading_date, peak_months=[12, 1, 2]):
-    """ Determine if date is inside the peak season
-
-        Defaults to summer months of Dec, Jan, Feb
-    """
-    d = arrow.get(reading_date)
-    if d.month in tc.PEAK_MONTHS:
-        return True
-    else:
-        return False
-
-
-def in_peak_time(reading_date,
-                 peak_start=datetime.time(15, 0, 0),
-                 peak_end=datetime.time(21, 1, 0)
-                 ):
-    """ Determine if in  the  daily  peak  demand  window
-
-        Defaults to between 3.00 pm and 9.30 pm
-    """
-    d = arrow.get(reading_date)
-    if peak_start < d.time() <= peak_end:
-        return True
-    else:
-        return False
 
 
 def convert_wh_to_w(Wh, hours=0.5):

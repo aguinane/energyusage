@@ -8,7 +8,6 @@ from .models import User, get_data_range
 from .loader import import_meter_data, export_meter_data
 from .forms import UsernamePasswordForm, FileForm
 from .charts import get_energy_chart_data, get_daily_chart_data
-from .tariff import DailyUsage, GeneralSupplyTariff, TimeofUseTariff, DemandTariff
 import sqlalchemy
 from qldtariffs import get_daily_usages, get_monthly_usages
 from qldtariffs import electricity_charges_general
@@ -231,12 +230,10 @@ def billing():
     re = arrow.get(last_record)
     num_days = (re - rs).days
 
-    t11, t12, t14 = calculate_usage_costs(user_id, rs, re)
     plot_settings = calculate_plot_settings(report_period='month')
 
     return render_template('billing.html', meter_id=user_id,
                            report_date=report_date,
-                           t11=t11, t12=t12, t14=t14,
                            plot_settings=plot_settings,
                            start_date=rs.format('YYYY-MM-DD'),
                            end_date=re.format('YYYY-MM-DD')
@@ -288,21 +285,6 @@ def get_user_stats(user_id):
     if num_days < 1:
         num_days = (last_record - first_record).seconds * 60 * 60 * 24
     return first_record, last_record, num_days
-
-
-def calculate_usage_costs(user_id, rs, re):
-    """ Calculate usage costs
-    """
-    t11 = GeneralSupplyTariff(user_id)
-    t11.calculate_bill(start_date=rs.datetime, end_date=re.datetime)
-
-    t12 = TimeofUseTariff(user_id)
-    t12.calculate_bill(start_date=rs.datetime, end_date=re.datetime)
-
-    t14 = DemandTariff(user_id)
-    t14.calculate_bill(start_date=rs.datetime, end_date=re.datetime)
-
-    return t11, t12, t14
 
 
 def get_navigation_range(report_period, rs, first_record, last_record):
