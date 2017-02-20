@@ -12,9 +12,9 @@ def get_energy_chart_data(meter_id, start_date, end_date):
     chartdata['consumption'] = []
 
     for r in get_energy_data(meter_id, start_date, end_date):
-        dTime = arrow.get(r.reading_date)
+        dTime = arrow.get(r.reading_start)
         ts = int(dTime.timestamp * 1000)
-        impWh = r.imp
+        impWh = r.value
         chartdata['consumption'].append([ts, impWh])
 
     chartdata['power'] = []
@@ -41,8 +41,6 @@ def get_daily_chart_data(meter_id, start_date, end_date):
     chartdata['consumption_peak'] = []
     chartdata['consumption_offpeak'] = []
     chartdata['demand'] = []
-
-
 
     readings = list(get_consumption_data(meter_id, start_date, end_date))
     usage_data = get_daily_usages(readings, 'Ergon', 'T14')

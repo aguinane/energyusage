@@ -1,7 +1,6 @@
 from sqlalchemy import create_engine
 from sqlalchemy import MetaData, Table, Column, DateTime, Float, Integer, between, func
 from sqlalchemy.sql import select
-import arrow
 from sqlalchemy.ext.hybrid import hybrid_property
 from . import bcrypt, db, app
 
@@ -9,18 +8,18 @@ from . import bcrypt, db, app
 class Energy(db.Model):
     """ The energy data for a user
     """
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
-    reading_date = db.Column(db.DateTime, primary_key=True)
-    interval = db.Column(db.Integer)
-    imp = db.Column(db.Integer)
-    exp = db.Column(db.Integer)
+    meter_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
+    meter_channel = db.Column(db.String(30), primary_key=True)
+    reading_start = db.Column(db.DateTime, primary_key=True)
+    reading_end = db.Column(db.DateTime)
+    value = db.Column(db.Integer)
 
 
 def get_data_range(meter_id):
     """ Get the minimum and maximum date ranges with data
     """
-    min_date = db.session.query(func.min(Energy.reading_date)).filter(Energy.user_id==meter_id).scalar()
-    max_date = db.session.query(func.max(Energy.reading_date)).filter(Energy.user_id==meter_id).scalar()
+    min_date = db.session.query(func.min(Energy.reading_start)).filter(Energy.meter_id==meter_id).scalar()
+    max_date = db.session.query(func.max(Energy.reading_end)).filter(Energy.meter_id==meter_id).scalar()
     return (min_date, max_date)
 
 
