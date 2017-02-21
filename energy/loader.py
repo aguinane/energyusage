@@ -17,8 +17,8 @@ def export_meter_data(user_id):
     return construct_csv(header, data)
 
 
-def get_meter_data(user_id):
-    readings = Energy.query.filter(Energy.meter_id == user_id)
+def get_meter_data(meter_id):
+    readings = Energy.query.filter(Energy.meter_id == meter_id)
     for r in readings:
         yield [r.meter_channel, r.reading_start, r.reading_end, r.value]
 
@@ -32,10 +32,9 @@ def construct_csv(header, data):
     return output.getvalue()
 
 
-def import_meter_data(user_name, file_path):
+def import_meter_data(meter_id, file_path):
     """ Load data from the user uploaded csv file into the database
     """
-    user = User.query.filter_by(username=user_name).first()
 
     interval = determine_interval(file_path)
     if interval not in [1, 10, 30]:
@@ -67,9 +66,9 @@ def import_meter_data(user_name, file_path):
         except IndexError:
             pass
 
-    new_records, skipped_records = load_interval_readings(user.id, 'Imp', imp_records)
+    new_records, skipped_records = load_interval_readings(meter_id, 'Imp', imp_records)
     if exp_records:
-        new_records, skipped_records = load_interval_readings(user.id, 'Exp', exp_records)
+        new_records, skipped_records = load_interval_readings(meter_id, 'Exp', exp_records)
 
     return new_records, skipped_records, failed_records
 

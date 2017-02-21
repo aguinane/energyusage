@@ -1,0 +1,37 @@
+{% extends "layout.html" %}
+{% set active_page = active_page|default('meters') -%}
+{% block title %}Energy Usage{% endblock %}
+{% block container %}
+<h1 class="page-header">Meters</h1>
+
+<h2>Your Meters</h2>
+<ul>
+{% for meter in user_meters %}
+    <li>
+        <a href="{{ url_for('usage_day', id=meter[0]) }}"> {{ meter[1] }} </a>
+        <a class="btn btn-primary btn-sm" href="{{ url_for('manage', id=meter[0]) }}"><i class="fa fa-pencil" aria-hidden="true"></i></a>
+
+    </li>
+{% endfor %}
+</ul>
+
+
+<br />
+<a class="btn btn-success btn-sm" href="{{ url_for('new_meter') }}"><i class="fa fa-plus-circle" aria-hidden="true"></i>
+ Add your meter</a>
+
+<hr />
+
+<h2>Public Meters</h2>
+<ul>
+{% for meter in public_meters %}
+    <li>
+        <a href="{{ url_for('usage_day', id=meter[0]) }}"> {{ meter[1] }} </a>
+        <span class="badge badge-default">[{{ meter[2] }}]</span>
+    </li>
+{% endfor %}
+</ul>
+
+
+
+{% endblock container%}
