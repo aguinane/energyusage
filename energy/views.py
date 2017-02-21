@@ -5,7 +5,7 @@ import arrow
 from werkzeug.utils import secure_filename
 from . import app, db
 from .models import User, Meter, get_data_range
-from .models import get_user_meters, get_public_meters
+from .models import get_user_meters, get_public_meters, visible_meters
 from .loader import import_meter_data, export_meter_data
 from .forms import UsernamePasswordForm, FileForm, NewMeter
 from .charts import get_energy_chart_data, get_daily_chart_data
@@ -69,11 +69,33 @@ def new_meter():
     return render_template('new_meter.html', form=form)
 
 
+def check_meter_permissions(user_id, meter_id):
+    """ Return if user can see a meter """
+    meter_id = int(meter_id)
+    visible = False
+    for meter in visible_meters(user_id):
+        print(meter_id, meter)
+        if meter_id == meter:
+            visible = True
+
+    editable = False
+    for meter, meter_name, user in get_user_meters(user_id):
+        if meter_id == meter:
+            editable = True
+
+    return visible, editable
+
+
 @app.route('/manage_meter/<int:id>', methods=["GET", "POST"])
 @login_required
 def manage(id):
     """ Manage meter data """
     user_id, user_name = get_user_details()
+    visible, editable = check_meter_permissions(user_id, id)
+    if not editable:
+        msg = 'Not authorised to manage this meter.'
+        flash(msg, category='warning')
+        return redirect(url_for('meters'))
     form = FileForm()
     if form.validate_on_submit():
         filename = secure_filename(str(id) + '.csv')
@@ -154,12 +176,17 @@ def signout():
     return redirect(url_for('index'))
 
 
+
+
 @app.route('/meter/<int:id>/day_usage/', methods=["GET", "POST"])
-@login_required
 def usage_day(id):
     """ Get daily usage stats """
     # Get user details
     user_id, user_name = get_user_details()
+
+    visible, editable = check_meter_permissions(user_id, id)
+    if not visible:
+        return 'Not authorised to view this page', 403
 
     # Get meter details
     first_record, last_record, num_days = get_meter_stats(id)
@@ -185,7 +212,7 @@ def usage_day(id):
     period_nav = get_navigation_range('day', rs, first_record, last_record)
     plot_settings = calculate_plot_settings(report_period='day')
 
-    readings = get_consumption_data(user_id, rs.datetime, re.datetime)
+    readings = list(get_consumption_data(id, rs.datetime, re.datetime))
     usage_data = get_daily_usages(readings, 'Ergon', 'T14')[rs.date()]
 
     return render_template('usage_day.html', meter_id=id,
@@ -200,11 +227,13 @@ def usage_day(id):
 
 
 @app.route('/meter/<int:id>/month_usage/', methods=["GET", "POST"])
-@login_required
 def usage_month(id):
     """ Get monthly usage details """
     # Get user details
     user_id, user_name = get_user_details()
+    visible, editable = check_meter_permissions(user_id, id)
+    if not visible:
+        return 'Not authorised to view this page', 403
 
     # Get meter details
     first_record, last_record, num_days = get_meter_stats(id)
@@ -297,9 +326,12 @@ def about():
 
 @app.route('/energy_data/')
 @app.route('/energy_data/<meter_id>.json', methods=['POST', 'GET'])
-@login_required
 def energy_data(meter_id=None):
     user_id, user_name = get_user_details()
+    visible, editable = check_meter_permissions(user_id, meter_id)
+    print(user_id, meter_id, visible, editable)
+    if not visible:
+        return 'Not authorised to view this page', 403
     if meter_id is None:
         return 'json chart api'
     else:
@@ -313,9 +345,11 @@ def energy_data(meter_id=None):
 
 @app.route('/daily_data/')
 @app.route('/daily_data/<meter_id>.json', methods=['POST', 'GET'])
-@login_required
 def daily_data(meter_id=None):
     user_id, user_name = get_user_details()
+    visible, editable = check_meter_permissions(user_id, meter_id)
+    if not visible:
+        return 'Not authorised to view this page', 403
     if meter_id is None:
         return 'json chart api'
     else:
