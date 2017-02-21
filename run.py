@@ -10,11 +10,6 @@ if __name__ == '__main__':
     if not os.path.exists('logs'):
         os.makedirs('logs')
 
-    with open('logging.yaml', 'rt') as f:
-        config = yaml.safe_load(f.read())
-    logging.config.dictConfig(config)
-    app.run(host='0.0.0.0', debug=True)
-
     if not os.path.exists('logs'):
         logging.info('Creating logs folder')
         os.makedirs('logs')
@@ -27,3 +22,9 @@ if __name__ == '__main__':
         logging.info('Creating database')
         from energy import db
         db.create_all()
+
+    with open('logging.yaml', 'rt') as f:
+        config = yaml.safe_load(f.read())
+    logging.config.dictConfig(config)
+    app.run(host='0.0.0.0', debug=True)
+
