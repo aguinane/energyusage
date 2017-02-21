@@ -4,9 +4,10 @@ import os
 import arrow
 from werkzeug.utils import secure_filename
 from . import app, db
-from .models import User, get_data_range
+from .models import User, Meter, get_data_range
+from .models import get_user_meters, get_public_meters
 from .loader import import_meter_data, export_meter_data
-from .forms import UsernamePasswordForm, FileForm
+from .forms import UsernamePasswordForm, FileForm, NewMeter
 from .charts import get_energy_chart_data, get_daily_chart_data
 import sqlalchemy
 from qldtariffs import get_daily_usages, get_monthly_usages
@@ -17,21 +18,69 @@ from qldtariffs import electricity_charges_tou_demand
 from .usage import get_consumption_data, average_daily_peak_demand
 
 
+def get_user_details():
+    """ Get details of loggged in user """
+
+    try:
+        current_username = current_user.username
+    except AttributeError:
+        return None, None
+
+    user = User.query.filter_by(username=current_user.username).first()
+    return user.id, user.username
+
+
 @app.route('/')
 def index():
     return render_template('index.html')
 
 
-@app.route('/manage', methods=["GET", "POST"])
+@app.route('/meters')
+def meters():
+    user_id, user_name = get_user_details()
+    user_meters = list(get_user_meters(user_id))
+    public_meters = list(get_public_meters())
+    return render_template('meters.html',
+                           user_meters=user_meters,
+                           public_meters=public_meters)
+
+
+@app.route('/new_meter', methods=["GET", "POST"])
 @login_required
-def manage():
+def new_meter():
+    """ Form to create a new meter record """
+    form = NewMeter()
+    if form.validate_on_submit():
+        user_id, user_name = get_user_details()
+        if not user_id:
+            flash('Something went wrong :/', category='error')
+            return redirect(url_for('new_meter'))
+        meter = Meter(user_id=user_id,
+                      meter_name=form.meter_name.data.lower(),
+                      sharing=form.sharing.data)
+        try:
+            db.session.add(meter)
+            db.session.commit()
+            flash('New meter created!', category='success')
+            return redirect(url_for('index'))
+        except sqlalchemy.exc.IntegrityError:
+            flash('Sorry, something went wrong :/', category='warning')
+            return redirect(url_for('new_meter'))
+    return render_template('new_meter.html', form=form)
+
+
+@app.route('/manage_meter/<int:id>', methods=["GET", "POST"])
+@login_required
+def manage(id):
+    """ Manage meter data """
+    user_id, user_name = get_user_details()
     form = FileForm()
     if form.validate_on_submit():
-        filename = secure_filename(current_user.username + '.csv')
+        filename = secure_filename(str(id) + '.csv')
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         form.upload_file.data.save(file_path)
         new, skipped, failed = import_meter_data(
-            current_user.username, file_path)
+            id, file_path)
         if new > 0:
             msg = '{} new readings added.'.format(new)
             flash(msg, category='success')
@@ -48,14 +97,14 @@ def manage():
             msg = '{} records were in the wrong format.'.format(failed)
             flash(msg, category='danger')
 
-        return redirect(url_for('manage'))
-    return render_template('manage.html', form=form)
+        return redirect(url_for('manage', id=id))
+    return render_template('manage.html', id=id, form=form)
 
 
 @app.route('/export')
 @login_required
 def export_data():
-    user_id = User.query.filter_by(username=current_user.username).first().id
+    user_id, user_name = get_user_details()
     return Response(export_meter_data(user_id),
                     mimetype="text/csv",
                     headers={"Content-disposition":
@@ -105,23 +154,19 @@ def signout():
     return redirect(url_for('index'))
 
 
-@app.route('/usage/')
+@app.route('/meter/<int:id>/day_usage/', methods=["GET", "POST"])
 @login_required
-def usage():
-    return redirect(url_for('usage_month'))
-
-
-@app.route('/usage/day/', methods=["GET", "POST"])
-@login_required
-def usage_day():
+def usage_day(id):
     """ Get daily usage stats """
     # Get user details
-    user_id = User.query.filter_by(username=current_user.username).first().id
-    first_record, last_record, num_days = get_user_stats(user_id)
+    user_id, user_name = get_user_details()
+
+    # Get meter details
+    first_record, last_record, num_days = get_meter_stats(id)
     if num_days == 0:
         flash('You need to upload some data before you can chart usage.',
               category='warning')
-        return redirect(url_for('manage'))
+        return redirect(url_for('manage', id=id))
 
     # Specify default day to report on
     try:
@@ -130,7 +175,7 @@ def usage_day():
         report_date = '{}-{}-{}'.format(str(last_record.year).zfill(2),
                                         str(last_record.month).zfill(2),
                                         str(last_record.day).zfill(2))
-        return redirect(url_for('usage_day', report_date=report_date))
+        return redirect(url_for('usage_day', id=id, report_date=report_date))
 
     # Get end of reporting period
     # And next and previous periods
@@ -143,7 +188,7 @@ def usage_day():
     readings = get_consumption_data(user_id, rs.datetime, re.datetime)
     usage_data = get_daily_usages(readings, 'Ergon', 'T14')[rs.date()]
 
-    return render_template('usage_day.html', meter_id=user_id,
+    return render_template('usage_day.html', meter_id=id,
                            report_period='day', report_date=report_date,
                            usage_data=usage_data,
                            period_desc=period_desc,
@@ -151,20 +196,22 @@ def usage_day():
                            plot_settings=plot_settings,
                            start_date=rs.format('YYYY-MM-DD'),
                            end_date=re.format('YYYY-MM-DD')
-                          )
+                           )
 
 
-@app.route('/usage/month/', methods=["GET", "POST"])
+@app.route('/meter/<int:id>/month_usage/', methods=["GET", "POST"])
 @login_required
-def usage_month():
+def usage_month(id):
     """ Get monthly usage details """
     # Get user details
-    user_id = User.query.filter_by(username=current_user.username).first().id
-    first_record, last_record, num_days = get_user_stats(user_id)
+    user_id, user_name = get_user_details()
+
+    # Get meter details
+    first_record, last_record, num_days = get_meter_stats(id)
     if num_days < 1:
         flash('You need to upload some data before you can chart usage.',
               category='warning')
-        return redirect(url_for('manage'))
+        return redirect(url_for('manage', id=id))
 
     # Specify default month to report on
     try:
@@ -172,7 +219,7 @@ def usage_month():
     except KeyError:
         report_date = '{}-{}-01'.format(str(last_record.year).zfill(2),
                                         str(last_record.month).zfill(2))
-        return redirect(url_for('usage_month', report_date=report_date))
+        return redirect(url_for('usage_month', id=id, report_date=report_date))
 
     # Get end of reporting period
     # And next and previous periods
@@ -187,16 +234,19 @@ def usage_month():
     num_days = (re - rs).days
     period_desc = rs.format('MMM YY')
 
-    readings = list(get_consumption_data(user_id, rs.datetime, re.datetime))
-    usage_data = get_monthly_usages(readings, 'Ergon', 'T14')[(rs.year, rs.month)]
+    readings = list(get_consumption_data(id, rs.datetime, re.datetime))
+    usage_data = get_monthly_usages(readings, 'Ergon', 'T14')[
+        (rs.year, rs.month)]
 
     t11 = electricity_charges_general('Ergon', usage_data.days, usage_data.all)
-    t12 = electricity_charges_tou('Ergon', usage_data.days, usage_data.peak, 0, usage_data.offpeak)
-    t14 = electricity_charges_tou_demand('Ergon', usage_data.days, usage_data.all, usage_data.demand)
+    t12 = electricity_charges_tou(
+        'Ergon', usage_data.days, usage_data.peak, 0, usage_data.offpeak)
+    t14 = electricity_charges_tou_demand(
+        'Ergon', usage_data.days, usage_data.all, usage_data.demand)
 
     plot_settings = calculate_plot_settings(report_period='month')
 
-    return render_template('usage_month.html', meter_id=user_id,
+    return render_template('usage_month.html', meter_id=id,
                            report_period='month', report_date=report_date,
                            usage_data=usage_data,
                            period_desc=period_desc,
@@ -212,8 +262,8 @@ def usage_month():
 @login_required
 def billing():
     # Get user details
-    user_id = User.query.filter_by(username=current_user.username).first().id
-    first_record, last_record, num_days = get_user_stats(user_id)
+    user_id, user_name = get_user_details()
+    first_record, last_record, num_days = get_meter_stats(user_id)
     if num_days < 1:
         flash('You need to upload some data before you can chart usage.',
               category='warning')
@@ -249,6 +299,7 @@ def about():
 @app.route('/energy_data/<meter_id>.json', methods=['POST', 'GET'])
 @login_required
 def energy_data(meter_id=None):
+    user_id, user_name = get_user_details()
     if meter_id is None:
         return 'json chart api'
     else:
@@ -264,6 +315,7 @@ def energy_data(meter_id=None):
 @app.route('/daily_data/<meter_id>.json', methods=['POST', 'GET'])
 @login_required
 def daily_data(meter_id=None):
+    user_id, user_name = get_user_details()
     if meter_id is None:
         return 'json chart api'
     else:
@@ -275,10 +327,10 @@ def daily_data(meter_id=None):
         return jsonify(flotData)
 
 
-def get_user_stats(user_id):
+def get_meter_stats(meter_id):
     """ Get the date range meter data exists for
     """
-    first_record, last_record = get_data_range(user_id)
+    first_record, last_record = get_data_range(meter_id)
     first_record = arrow.get(first_record)
     last_record = arrow.get(last_record)
     num_days = (last_record - first_record).days

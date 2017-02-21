@@ -5,11 +5,46 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from . import bcrypt, db, app
 
 
+class Meter(db.Model):
+    """ A list of meters
+    """
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    sharing = db.Column(db.String(7)) # Public / Private
+    meter_name = db.Column(db.String(20))
+
+
+def get_user_meters(user_id):
+    """ Return a list of meters that the user manages """
+    meters = Meter.query.filter(Meter.user_id == user_id)
+    for meter in meters:
+        user_name = User.query.filter_by(id=meter.user_id).first().username
+        yield (meter.id, meter.meter_name, user_name)
+
+def get_public_meters():
+    """ Return a list of publicly viewable meters """
+    meters = Meter.query.filter(Meter.sharing == 'public')
+    for meter in meters:
+        user_name = User.query.filter_by(id=meter.user_id).first().username
+        yield (meter.id, meter.meter_name, user_name)
+
+
+def visible_meters(user_id):
+    """ Return a list of meters that the user can view """
+    if user_id:
+        meters = Meter.query.filter((Meter.user_id == user_id)|(Meter.sharing == 'public'))
+    else:
+        meters = Meter.query.filter(Meter.sharing == 'public')
+    for meter in meters:
+        user_name = User.query.filter_by(id=meter.user_id).first().username
+        yield (meter.id)
+
+
 class Energy(db.Model):
     """ The energy data for a user
     """
-    meter_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
-    meter_channel = db.Column(db.String(30), primary_key=True)
+    meter_id = db.Column(db.Integer, db.ForeignKey('meter.id'), primary_key=True)
+    meter_channel = db.Column(db.String(3), primary_key=True)
     reading_start = db.Column(db.DateTime, primary_key=True)
     reading_end = db.Column(db.DateTime)
     value = db.Column(db.Integer)
@@ -57,7 +92,3 @@ class User(db.Model):
     def is_anonymous(self):
         """False, as anonymous users aren't supported."""
         return False
-
-
-
-
