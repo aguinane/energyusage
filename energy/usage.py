@@ -22,14 +22,14 @@ def get_power_data(meter_id, start_date, end_date):
 def get_consumption_data(meter_id, start_date, end_date):
     """ Get consumption data for a meter
     """
-    for r in get_energy_data(meter_id, start_date, end_date, 'Imp'):
+    for r in get_energy_data(meter_id, start_date, end_date, 'E1'):
         period_start = r.reading_start
         period_end = r.reading_end
         usage_kWh = r.value/1000
         yield (period_start, period_end, usage_kWh)
 
 
-def get_energy_data(meter_id, start_date, end_date, meter_channel='Imp'):
+def get_energy_data(meter_id, start_date, end_date, meter_channel='E1'):
     """ Get energy data for a meter
     """
     readings = Energy.query.filter(Energy.meter_id == meter_id)

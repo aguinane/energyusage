@@ -1,0 +1,89 @@
+{% extends "layout.html" %}
+{% set active_page = active_page|default('meters') -%}
+{% block container %}
+
+{% if form.errors %}
+        {% for field_name, field_errors in form.errors|dictsort if field_errors %}
+            {% for error in field_errors %}
+                <div class="alert alert-danger" role="alert">
+                    <strong>Error:</strong> {{ form[field_name].label }}: {{ error }}
+                </div>
+            {% endfor %}
+        {% endfor %}
+{% endif %}
+
+<h1>Manage meter data for Meter #{{id}}</h1>
+
+<ul class="nav nav-tabs">
+  <li class="nav-item">
+    <a class="nav-link active" href="{{ url_for('manage_import', id=id) }}">Import</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="{{ url_for('manage_export', id=id) }}">Export</a>
+  </li>
+</ul>
+
+<h3>Import</h3>
+
+<div class="row">
+    <div class="col-sm-6">
+<form method="POST" action="/manage_import/{{id}}" enctype="multipart/form-data">
+
+    <div class="form-group">
+        {{ form.upload_file.label }}:
+        {{ form.upload_file(class="form-control") }}
+    </div>
+
+    <div class="form-group">
+        {{ form.file_type.label }}:
+        {{ form.file_type(class="form-control") }}
+    </div>
+
+    <div class="form-group">
+        {{ form.uom.label }}:
+        {{ form.uom(class="form-control") }}
+    </div>
+
+    <button type="submit" class="btn btn-primary">
+        <i class="fa fa-cloud-upload" aria-hidden="true"></i> Upload
+    </button>
+
+</form>
+
+    </div><!-- /col-->
+
+    <div class="col-sm-6">
+
+
+<p>You can upload NEM12, NEM13 or raw interval data.</p>
+
+<p>
+NEM Files should be read automatically. (Coming soon)
+</p>
+
+<p>
+Raw interval data should be a .csv file in one of the following formats with headings:
+</p>
+
+
+<p class="form-text text-muted"><small>
+BILLING_END_DATETIME, CONSUMPTION<br />
+BILLING_END_DATETIME, CONSUMPTION, GENERATION<br />
+</small></p>
+
+
+For example:
+<p class="form-text text-muted"><small>
+Timestamp, Import Wh, Export Wh <br />
+2016-08-10 13:20:00, 29, 0 <br />
+</small></p>
+
+    </div><!-- /col-->
+</div><!-- /row-->
+
+
+
+
+
+
+{% endblock %}

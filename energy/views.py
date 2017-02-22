@@ -74,7 +74,6 @@ def check_meter_permissions(user_id, meter_id):
     meter_id = int(meter_id)
     visible = False
     for meter in visible_meters(user_id):
-        print(meter_id, meter)
         if meter_id == meter:
             visible = True
 
@@ -86,23 +85,26 @@ def check_meter_permissions(user_id, meter_id):
     return visible, editable
 
 
-@app.route('/manage_meter/<int:id>', methods=["GET", "POST"])
+@app.route('/manage_import/<int:id>', methods=["GET", "POST"])
 @login_required
-def manage(id):
-    """ Manage meter data """
+def manage_import(id):
+    """ Import meter data """
     user_id, user_name = get_user_details()
     visible, editable = check_meter_permissions(user_id, id)
     if not editable:
         msg = 'Not authorised to manage this meter.'
         flash(msg, category='warning')
         return redirect(url_for('meters'))
+
     form = FileForm()
     if form.validate_on_submit():
         filename = secure_filename(str(id) + '.csv')
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         form.upload_file.data.save(file_path)
+        file_type = form.file_type.data
+        uom = form.uom.data
         new, skipped, failed = import_meter_data(
-            id, file_path)
+            id, file_path, uom, file_type)
         if new > 0:
             msg = '{} new readings added.'.format(new)
             flash(msg, category='success')
@@ -119,8 +121,22 @@ def manage(id):
             msg = '{} records were in the wrong format.'.format(failed)
             flash(msg, category='danger')
 
-        return redirect(url_for('manage', id=id))
-    return render_template('manage.html', id=id, form=form)
+        return redirect(url_for('manage_import', id=id))
+    return render_template('manage_import.html', id=id, form=form)
+
+
+@app.route('/manage_export/<int:id>', methods=["GET", "POST"])
+@login_required
+def manage_export(id):
+    """ Manage meter data """
+    user_id, user_name = get_user_details()
+    visible, editable = check_meter_permissions(user_id, id)
+    if not editable:
+        msg = 'Not authorised to manage this meter.'
+        flash(msg, category='warning')
+        return redirect(url_for('meters'))
+
+    return render_template('manage_export.html', id=id)
 
 
 @app.route('/export')
@@ -193,7 +209,7 @@ def usage_day(id):
     if num_days == 0:
         flash('You need to upload some data before you can chart usage.',
               category='warning')
-        return redirect(url_for('manage', id=id))
+        return redirect(url_for('manage_import', id=id))
 
     # Specify default day to report on
     try:
@@ -213,7 +229,8 @@ def usage_day(id):
     plot_settings = calculate_plot_settings(report_period='day')
 
     readings = list(get_consumption_data(id, rs.datetime, re.datetime))
-    usage_data = get_daily_usages(readings, 'Ergon', 'T14')[rs.date()]
+    usage_data = get_daily_usages(readings, 'Ergon', 'T14')
+    usage_data = usage_data[rs.date()]
 
     return render_template('usage_day.html', meter_id=id,
                            report_period='day', report_date=report_date,
@@ -240,7 +257,7 @@ def usage_month(id):
     if num_days < 1:
         flash('You need to upload some data before you can chart usage.',
               category='warning')
-        return redirect(url_for('manage', id=id))
+        return redirect(url_for('manage_import', id=id))
 
     # Specify default month to report on
     try:
@@ -270,14 +287,19 @@ def usage_month(id):
     t11 = electricity_charges_general('Ergon', usage_data.days, usage_data.all)
     t12 = electricity_charges_tou(
         'Ergon', usage_data.days, usage_data.peak, 0, usage_data.offpeak)
+    if rs.month in [12, 1, 2]:
+        peak_month = True
+    else:
+        peak_month = False
+    print(peak_month, usage_data.demand)
     t14 = electricity_charges_tou_demand(
-        'Ergon', usage_data.days, usage_data.all, usage_data.demand)
+        'Ergon', usage_data.days, usage_data.all, usage_data.demand, peak_month)
 
     plot_settings = calculate_plot_settings(report_period='month')
 
     return render_template('usage_month.html', meter_id=id,
                            report_period='month', report_date=report_date,
-                           usage_data=usage_data,
+                           usage_data=usage_data, peak_month=peak_month,
                            period_desc=period_desc,
                            t11=t11, t12=t12, t14=t14,
                            period_nav=period_nav, num_days=num_days,
@@ -296,7 +318,7 @@ def billing():
     if num_days < 1:
         flash('You need to upload some data before you can chart usage.',
               category='warning')
-        return redirect(url_for('manage'))
+        return redirect(url_for('manage_import'))
 
     # Specify default day to report on
     try:
@@ -329,7 +351,6 @@ def about():
 def energy_data(meter_id=None):
     user_id, user_name = get_user_details()
     visible, editable = check_meter_permissions(user_id, meter_id)
-    print(user_id, meter_id, visible, editable)
     if not visible:
         return 'Not authorised to view this page', 403
     if meter_id is None:
