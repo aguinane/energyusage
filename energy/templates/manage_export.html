@@ -1,0 +1,28 @@
+{% extends "layout.html" %}
+{% set active_page = active_page|default('meters') -%}
+{% block container %}
+
+<h1>Manage meter data for Meter #{{id}}</h1>
+
+<ul class="nav nav-tabs">
+  <li class="nav-item">
+    <a class="nav-link" href="{{ url_for('manage_import', id=id) }}">Import</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link active" href="{{ url_for('manage_export', id=id) }}">Export</a>
+  </li>
+</ul>
+
+
+<h3>Export</h3>
+<p>
+Download all your meter data.
+</p>
+<p>
+<a class="btn btn-primary" href="{{ url_for('export_data') }}" role="button">
+    <i class="fa fa-cloud-download" aria-hidden="true"></i>
+    Download CSV
+</a>
+</p>
+
+{% endblock %}

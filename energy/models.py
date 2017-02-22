@@ -2,6 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy import MetaData, Table, Column, DateTime, Float, Integer, between, func
 from sqlalchemy.sql import select
 from sqlalchemy.ext.hybrid import hybrid_property
+import datetime
 from . import bcrypt, db, app
 
 
@@ -55,6 +56,7 @@ def get_data_range(meter_id):
     """
     min_date = db.session.query(func.min(Energy.reading_start)).filter(Energy.meter_id==meter_id).scalar()
     max_date = db.session.query(func.max(Energy.reading_end)).filter(Energy.meter_id==meter_id).scalar()
+    max_date = max_date - datetime.timedelta(hours=1/6)
     return (min_date, max_date)
 
 

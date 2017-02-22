@@ -32,7 +32,7 @@ def construct_csv(header, data):
     return output.getvalue()
 
 
-def import_meter_data(meter_id, file_path):
+def import_meter_data(meter_id, file_path, uom='kWh'):
     """ Load data from the user uploaded csv file into the database
     """
 
@@ -49,7 +49,8 @@ def import_meter_data(meter_id, file_path):
     for row in load_from_file(file_path):
         try:
             reading_end = parse_date(row[0])
-            reading_start = reading_end - datetime.timedelta(seconds=interval * 60)
+            reading_start = reading_end - \
+                datetime.timedelta(seconds=interval * 60)
         except:
             msg = '{} is not a date format'.format(row[0])
             logging.error(msg)
@@ -66,22 +67,25 @@ def import_meter_data(meter_id, file_path):
         except IndexError:
             pass
 
-    new_records, skipped_records = load_interval_readings(meter_id, 'Imp', imp_records)
+    new_records, skipped_records = load_interval_readings(
+        meter_id, 'E1', imp_records, uom)
     if exp_records:
-        new_records, skipped_records = load_interval_readings(meter_id, 'Exp', exp_records)
+        new_records, skipped_records = load_interval_readings(
+            meter_id, 'B1', exp_records, uom)
 
     return new_records, skipped_records, failed_records
 
-def load_interval_readings(meter_id, meter_channel, readings):
-    """ Load readings into database """
+
+def load_interval_readings(meter_id, meter_channel, readings, uom='kWh'):
+    """ Load readings into database (in Wh) """
     new_records = 0
     skipped_records = 0
     for row in readings:
         reading_start = row[0]
         reading_end = row[1]
-        value = row[2]
+        value = round(row[2] * get_unit_conversion(uom), 2)
         if Energy.query.filter_by(meter_id=meter_id, meter_channel=meter_channel,
-                                reading_start=reading_start).first():
+                                  reading_start=reading_start).first():
             # Record already exists
             skipped_records += 1
             continue
@@ -95,6 +99,19 @@ def load_interval_readings(meter_id, meter_channel, readings):
             new_records += 1
     db.session.commit()
     return new_records, skipped_records
+
+
+def get_unit_conversion(uom):
+    """ Get conversion factor for passed unit """
+    uom = uom.lower()
+    if uom == 'wh':
+        return 1
+    elif uom == 'kwh':
+        return 1000
+    elif uom == 'wm':
+        return 1 / 60
+    else:
+        raise ValueError('{} is not supported'.format(uom))
 
 
 def determine_interval(file_path):
@@ -149,13 +166,6 @@ def load_from_file(file_path):
     with open(file_path, newline='') as csv_file:
         reader = csv.reader(csv_file, delimiter=',', quotechar='"')
         h = next(reader, None)  # first row is headings
-        VALID_HEADINGS = [['READING_DATETIME', 'IMP'],
-                          ['READING_DATETIME', 'IMP', 'EXP'],
-                          ['READING_DATETIME', 'IMP', 'EXP', 'STATUS'],
-                          ['READING_DATE', 'IMP', 'EXP']
-                          ]
-        if h in VALID_HEADINGS:
+        if len(h) <= 4:
             for row in reader:
                 yield row
-        else:
-            flash('CSV was not in the correct format.', category='danger')
