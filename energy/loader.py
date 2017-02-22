@@ -32,46 +32,54 @@ def construct_csv(header, data):
     return output.getvalue()
 
 
-def import_meter_data(meter_id, file_path, uom='kWh'):
+def import_meter_data(meter_id, file_path, uom='kWh', file_type='interval'):
     """ Load data from the user uploaded csv file into the database
     """
+    failed_records = 0
+    if file_type == 'interval':
+        # Determine the innterval spacing between rows
+        interval = determine_interval(file_path)
+        if interval not in [1, 10, 30]:
+            msg = 'Average time interval must be 1, 10 or 30 minutes, not {}'.format(
+                interval)
+            flash(msg, 'danger')
+            return 0, 0, 0
 
-    interval = determine_interval(file_path)
-    if interval not in [1, 10, 30]:
-        msg = 'Average time interval must be 1, 10 or 30 minutes, not {}'.format(
-            interval)
+        imp_records = []
+        exp_records = []
+
+        for row in load_from_file(file_path):
+            try:
+                reading_end = parse_date(row[0])
+                reading_start = reading_end - \
+                    datetime.timedelta(seconds=interval * 60)
+            except ValueError:
+                msg = '{} is not a date format'.format(row[0])
+                logging.error(msg)
+                failed_records += 1
+                continue
+
+            if row[1]:
+                imp = float(row[1])
+                imp_records.append((reading_start, reading_end, imp))
+            try:
+                if row[2]:
+                    exp = float(row[2])
+                    exp_records.append((reading_start, reading_end, exp))
+            except IndexError:
+                pass
+
+        new_records, skipped_records = load_interval_readings(
+            meter_id, 'E1', imp_records, uom)
+        if exp_records:
+            new_records, skipped_records = load_interval_readings(
+                meter_id, 'B1', exp_records, uom)
+
+    elif file_type == 'nem':
+        msg = 'NEM support coming soon - sorry!'
         flash(msg, 'danger')
         return 0, 0, 0
 
-    imp_records = []
-    exp_records = []
-    failed_records = 0
-    for row in load_from_file(file_path):
-        try:
-            reading_end = parse_date(row[0])
-            reading_start = reading_end - \
-                datetime.timedelta(seconds=interval * 60)
-        except:
-            msg = '{} is not a date format'.format(row[0])
-            logging.error(msg)
-            failed_records += 1
-            continue
-
-        if row[1]:
-            imp = float(row[1])
-            imp_records.append((reading_start, reading_end, imp))
-        try:
-            if row[2]:
-                exp = float(row[2])
-                exp_records.append((reading_start, reading_end, exp))
-        except IndexError:
-            pass
-
-    new_records, skipped_records = load_interval_readings(
-        meter_id, 'E1', imp_records, uom)
-    if exp_records:
-        new_records, skipped_records = load_interval_readings(
-            meter_id, 'B1', exp_records, uom)
 
     return new_records, skipped_records, failed_records
 

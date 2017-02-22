@@ -95,6 +95,7 @@ def manage_import(id):
         msg = 'Not authorised to manage this meter.'
         flash(msg, category='warning')
         return redirect(url_for('meters'))
+
     form = FileForm()
     if form.validate_on_submit():
         filename = secure_filename(str(id) + '.csv')
@@ -103,7 +104,7 @@ def manage_import(id):
         file_type = form.file_type.data
         uom = form.uom.data
         new, skipped, failed = import_meter_data(
-            id, file_path, uom)
+            id, file_path, uom, file_type)
         if new > 0:
             msg = '{} new readings added.'.format(new)
             flash(msg, category='success')
