@@ -74,7 +74,6 @@ def check_meter_permissions(user_id, meter_id):
     meter_id = int(meter_id)
     visible = False
     for meter in visible_meters(user_id):
-        print(meter_id, meter)
         if meter_id == meter:
             visible = True
 
@@ -287,14 +286,19 @@ def usage_month(id):
     t11 = electricity_charges_general('Ergon', usage_data.days, usage_data.all)
     t12 = electricity_charges_tou(
         'Ergon', usage_data.days, usage_data.peak, 0, usage_data.offpeak)
+    if rs.month in [12, 1, 2]:
+        peak_month = True
+    else:
+        peak_month = False
+    print(peak_month, usage_data.demand)
     t14 = electricity_charges_tou_demand(
-        'Ergon', usage_data.days, usage_data.all, usage_data.demand)
+        'Ergon', usage_data.days, usage_data.all, usage_data.demand, peak_month)
 
     plot_settings = calculate_plot_settings(report_period='month')
 
     return render_template('usage_month.html', meter_id=id,
                            report_period='month', report_date=report_date,
-                           usage_data=usage_data,
+                           usage_data=usage_data, peak_month=peak_month,
                            period_desc=period_desc,
                            t11=t11, t12=t12, t14=t14,
                            period_nav=period_nav, num_days=num_days,
@@ -346,7 +350,6 @@ def about():
 def energy_data(meter_id=None):
     user_id, user_name = get_user_details()
     visible, editable = check_meter_permissions(user_id, meter_id)
-    print(user_id, meter_id, visible, editable)
     if not visible:
         return 'Not authorised to view this page', 403
     if meter_id is None:

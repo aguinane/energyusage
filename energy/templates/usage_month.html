@@ -77,7 +77,9 @@
     </tr>
     <tr>
         <td>Demand Charge</td>
-        <td>{{ (usage_data.demand)|round(3) }} kW</td>
+
+        <td>{{ (usage_data.demand)|round(3) }} kW
+            {% if not peak_month %}<br /><small>min 3 kW</small>{% endif %}</td>
         <td>-</td>
         <td>-</td>
         <td>${{ (t14.demand.cost_incl_gst/100)|round(2) }}</td>
