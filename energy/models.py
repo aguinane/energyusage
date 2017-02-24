@@ -22,6 +22,12 @@ def delete_meter_data(meter_id):
     db.session.commit()
 
 
+def get_meter_name(meter_id):
+    """ Return a list of meters that the user manages """
+    meter = Meter.query.filter(Meter.id == meter_id).first()
+    return meter.meter_name
+
+
 def get_user_meters(user_id):
     """ Return a list of meters that the user manages """
     meters = Meter.query.filter(Meter.user_id == user_id)

@@ -3,11 +3,12 @@ import io
 import os
 import arrow
 import datetime
-from .models import User, Energy
+from .models import User, Energy, get_meter_name
 from . import db
 from flask import flash
 import logging
 import statistics
+import nemreader as nr
 
 
 def export_meter_data(user_id):
@@ -35,6 +36,7 @@ def construct_csv(header, data):
 def import_meter_data(meter_id, file_path, uom='kWh', file_type='interval'):
     """ Load data from the user uploaded csv file into the database
     """
+    meter_name = get_meter_name(meter_id)
     failed_records = 0
     if file_type == 'interval':
         # Determine the innterval spacing between rows
@@ -76,10 +78,26 @@ def import_meter_data(meter_id, file_path, uom='kWh', file_type='interval'):
                 meter_id, 'B1', exp_records, uom)
 
     elif file_type == 'nem':
-        msg = 'NEM support coming soon - sorry!'
-        flash(msg, 'danger')
-        return 0, 0, 0
-
+        try:
+            m = nr.read_nem_file(file_path)
+        except ValueError:
+            msg = 'Could not read NEM file. Is it in the right format?'
+            flash(msg, 'danger')
+            return 0, 0, 0
+        try:
+            channels = m.readings[meter_name]
+        except KeyError:
+            nmis = ','.join(m.transactions.keys())
+            msg = "Could not find a NMI matching '{}' in the NEM file. ".format(meter_name)
+            msg += 'Check that your meter name matches one of these NMIs: {}'.format(nmis)
+            flash(msg, 'danger')
+            return 0, 0, 0
+        for channel in channels:
+            readings = []
+            for reading in m.readings[meter_name][channel]:
+                    readings.append(reading)
+            new_records, skipped_records = load_interval_readings(
+                            meter_id, channel, readings, uom)
 
     return new_records, skipped_records, failed_records
 
@@ -91,7 +109,11 @@ def load_interval_readings(meter_id, meter_channel, readings, uom='kWh'):
     for row in readings:
         reading_start = row[0]
         reading_end = row[1]
-        value = round(row[2] * get_unit_conversion(uom), 2)
+        try:
+            reading_uom = reading.uom
+        except NameError:
+            reading_uom = uom
+        value = round(row[2] * get_unit_conversion(reading_uom), 2)
         if Energy.query.filter_by(meter_id=meter_id, meter_channel=meter_channel,
                                   reading_start=reading_start).first():
             # Record already exists

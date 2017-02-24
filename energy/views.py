@@ -57,7 +57,7 @@ def new_meter():
             flash('Something went wrong :/', category='error')
             return redirect(url_for('new_meter'))
         meter = Meter(user_id=user_id,
-                      meter_name=form.meter_name.data.lower(),
+                      meter_name=form.meter_name.data.upper().strip(),
                       sharing=form.sharing.data)
         try:
             db.session.add(meter)
