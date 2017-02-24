@@ -15,6 +15,13 @@ class Meter(db.Model):
     meter_name = db.Column(db.String(20))
 
 
+def delete_meter_data(meter_id):
+    """ Delete meter and all data """
+    Energy.query.filter(Energy.meter_id==meter_id).delete()
+    Meter.query.filter(Meter.id==meter_id).delete()
+    db.session.commit()
+
+
 def get_user_meters(user_id):
     """ Return a list of meters that the user manages """
     meters = Meter.query.filter(Meter.user_id == user_id)
