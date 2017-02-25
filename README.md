@@ -3,19 +3,19 @@
 
 Provide analysis and charting of energy usage
 
+[🔗 Site Link](http://aguinane.pythonanywhere.com/)
+
+
+## Run yourself
+
 To run the website:
 ```
 python run.py
 ```
+This will set up the sqlite database automatically on first run.
 
 Or in headless mode:
 ```
 setsid gunicorn --bind 0.0.0.0:8000 wsgi:app -t 600
 ```
 
-To initialise the database on first use:
-```
-python
-from energy import db
-db.create_all()
-```

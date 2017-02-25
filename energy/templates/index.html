@@ -3,7 +3,17 @@
 {% block title %}Energy Usage{% endblock %}
 {% block container %}
 <h1 class="page-header">Home</h1>
-<p>Try the meters page, this is still being developed.</p>
+
+<p>If you have access to interval data from your smart meter, you can use this website to upload it and perform analysis.
+Currently you can just compare prices under different tariffs, but more features will be added eventually.
+</p>
+
+<p>Click on the <a href="{{ url_for('meters') }}">meters</a> page to upload your data or look at other people's data.
+</p>
+
+<p>Example of daily interval load profile:<br />
+<img src="{{ url_for('static', filename='img/screenshot_daily.png') }}" class="img-thumbnail" alt="Screenshot">
+</p>
 
 
 {% endblock container%}

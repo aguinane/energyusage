@@ -2,6 +2,16 @@
 {% set active_page = active_page|default('meters') -%}
 {% block container %}
 
+{% if form.errors %}
+        {% for field_name, field_errors in form.errors|dictsort if field_errors %}
+            {% for error in field_errors %}
+                <div class="alert alert-danger" role="alert">
+                    <strong>Error:</strong> {{ form[field_name].label }}: {{ error }}
+                </div>
+            {% endfor %}
+        {% endfor %}
+{% endif %}
+
 <h1>Manage meter data for Meter #{{id}}</h1>
 
 <ul class="nav nav-tabs">
@@ -24,5 +34,17 @@ Download all your meter data.
     Download CSV
 </a>
 </p>
+
+
+<h3>Delete Meter</h3>
+<p>
+
+<form method="POST" action="/manage_export/{{id}}">
+
+    <button type="submit" class="btn btn-danger">
+        <i class="fa fa-trash" aria-hidden="true"></i> Delete
+    </button> <strong>This cannot be undone!</strong>
+
+</form>
 
 {% endblock %}

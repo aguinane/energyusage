@@ -4,10 +4,11 @@ import os
 import arrow
 from werkzeug.utils import secure_filename
 from . import app, db
-from .models import User, Meter, get_data_range
+from .models import User, Meter, get_data_range, delete_meter_data
 from .models import get_user_meters, get_public_meters, visible_meters
 from .loader import import_meter_data, export_meter_data
 from .forms import UsernamePasswordForm, FileForm, NewMeter
+from flask_wtf import FlaskForm
 from .charts import get_energy_chart_data, get_daily_chart_data
 import sqlalchemy
 from qldtariffs import get_daily_usages, get_monthly_usages
@@ -56,7 +57,7 @@ def new_meter():
             flash('Something went wrong :/', category='error')
             return redirect(url_for('new_meter'))
         meter = Meter(user_id=user_id,
-                      meter_name=form.meter_name.data.lower(),
+                      meter_name=form.meter_name.data.upper().strip(),
                       sharing=form.sharing.data)
         try:
             db.session.add(meter)
@@ -136,7 +137,14 @@ def manage_export(id):
         flash(msg, category='warning')
         return redirect(url_for('meters'))
 
-    return render_template('manage_export.html', id=id)
+    form = FlaskForm()
+    if form.validate_on_submit():
+        delete_meter_data(id)
+        msg = 'Meter deleted!'
+        flash(msg, category='success')
+        return redirect(url_for('meters'))
+
+    return render_template('manage_export.html', id=id, form=form)
 
 
 @app.route('/export')
