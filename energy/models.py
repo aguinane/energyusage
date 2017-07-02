@@ -58,10 +58,13 @@ class Energy(db.Model):
     """ The energy data for a user
     """
     meter_id = db.Column(db.Integer, db.ForeignKey('meter.id'), primary_key=True)
-    meter_channel = db.Column(db.String(3), primary_key=True)
     reading_start = db.Column(db.DateTime, primary_key=True)
     reading_end = db.Column(db.DateTime)
-    value = db.Column(db.Integer)
+    e1 = db.Column(db.Integer)
+    e2 = db.Column(db.Integer)
+    b1 = db.Column(db.Integer)
+    voltage = db.Column(db.Integer)
+    temp = db.Column(db.Integer)
 
 
 def get_data_range(meter_id):
@@ -80,7 +83,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     username = db.Column(db.String(64), unique=True)
     _password = db.Column(db.String(128))
-
+    apikey = db.Column(db.String(64))
 
     @hybrid_property
     def password(self):

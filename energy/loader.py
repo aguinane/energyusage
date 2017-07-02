@@ -1,19 +1,20 @@
 import csv
 import io
 import os
-import arrow
 import datetime
-from .models import User, Energy, get_meter_name
-from . import db
-from flask import flash
 import logging
 import statistics
+import arrow
+import requests
+from flask import flash, url_for
 import nemreader as nr
+from . import db
+from .models import User, Energy, get_meter_name
 
 
 def export_meter_data(user_id):
 
-    header = ['CHANNEL', 'READING_START', 'READING_END', 'VALUE']
+    header = ['READING_START', 'READING_END', 'E1', 'E2', 'B1']
     data = get_meter_data(user_id)
     return construct_csv(header, data)
 
@@ -21,7 +22,7 @@ def export_meter_data(user_id):
 def get_meter_data(meter_id):
     readings = Energy.query.filter(Energy.meter_id == meter_id)
     for r in readings:
-        yield [r.meter_channel, r.reading_start, r.reading_end, r.value]
+        yield [r.reading_start, r.reading_end, r.e1, r.e2, r.b1]
 
 
 def construct_csv(header, data):
@@ -38,8 +39,13 @@ def import_meter_data(meter_id, file_path, uom='kWh', file_type='interval'):
     """
     meter_name = get_meter_name(meter_id)
     failed_records = 0
+    new_records = 0
+
+    url = url_for('api.interval_upload', _external=True)
+    headers = {'X-meterid': str(meter_id)}
+
     if file_type == 'interval':
-        # Determine the innterval spacing between rows
+        # Determine the interval spacing between rows
         interval = determine_interval(file_path)
         if interval not in [1, 10, 30]:
             msg = 'Average time interval must be 1, 10 or 30 minutes, not {}'.format(
@@ -47,35 +53,36 @@ def import_meter_data(meter_id, file_path, uom='kWh', file_type='interval'):
             flash(msg, 'danger')
             return 0, 0, 0
 
-        imp_records = []
-        exp_records = []
-
         for row in load_from_file(file_path):
             try:
                 reading_end = parse_date(row[0])
-                reading_start = reading_end - \
-                    datetime.timedelta(seconds=interval * 60)
             except ValueError:
                 msg = '{} is not a date format'.format(row[0])
                 logging.error(msg)
                 failed_records += 1
                 continue
 
-            if row[1]:
-                imp = float(row[1])
-                imp_records.append((reading_start, reading_end, imp))
+            e1 = None
+            e2 = None
+            b1 = None
             try:
-                if row[2]:
-                    exp = float(row[2])
-                    exp_records.append((reading_start, reading_end, exp))
+                e1 = row[1]
+                e2 = row[2]
             except IndexError:
                 pass
 
-        new_records, skipped_records = load_interval_readings(
-            meter_id, 'E1', imp_records, uom)
-        if exp_records:
-            new_records, skipped_records = load_interval_readings(
-                meter_id, 'B1', exp_records, uom)
+            payload = {'d': reading_end.strftime('%Y%m%d'),
+                       't': reading_end.strftime('%H:%M'),
+                       'interval': str(interval),
+                       'e1': e1,
+                       'e2': e2,
+                       'b1': b1
+                      }
+            r = requests.get(url, headers=headers, data=payload)
+            if r.status_code == 201:
+                new_records += 1
+
+
 
     elif file_type == 'nem':
         try:
@@ -100,35 +107,6 @@ def import_meter_data(meter_id, file_path, uom='kWh', file_type='interval'):
                             meter_id, channel, readings, uom)
 
     return new_records, skipped_records, failed_records
-
-
-def load_interval_readings(meter_id, meter_channel, readings, uom='kWh'):
-    """ Load readings into database (in Wh) """
-    new_records = 0
-    skipped_records = 0
-    for row in readings:
-        reading_start = row[0]
-        reading_end = row[1]
-        try:
-            reading_uom = reading.uom
-        except NameError:
-            reading_uom = uom
-        value = round(row[2] * get_unit_conversion(reading_uom), 2)
-        if Energy.query.filter_by(meter_id=meter_id, meter_channel=meter_channel,
-                                  reading_start=reading_start).first():
-            # Record already exists
-            skipped_records += 1
-            continue
-        else:
-            energy = Energy(meter_id=meter_id,
-                            meter_channel=meter_channel,
-                            reading_start=reading_start,
-                            reading_end=reading_end,
-                            value=value)
-            db.session.add(energy)
-            new_records += 1
-    db.session.commit()
-    return new_records, skipped_records
 
 
 def get_unit_conversion(uom):
