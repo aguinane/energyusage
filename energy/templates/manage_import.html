@@ -12,9 +12,12 @@
         {% endfor %}
 {% endif %}
 
-<h1>Manage meter data for Meter #{{id}}</h1>
+<h1>Manage Meter #{{id}} <small>{{meter_name}}</small></h1>
 
 <ul class="nav nav-tabs">
+  <li class="nav-item">
+    <a class="nav-link" href="{{ url_for('manage_meter', id=id) }}">Meter</a>
+  </li>
   <li class="nav-item">
     <a class="nav-link active" href="{{ url_for('manage_import', id=id) }}">Import</a>
   </li>
@@ -44,9 +47,22 @@
         {{ form.uom(class="form-control") }}
     </div>
 
-    <button type="submit" class="btn btn-primary">
+    <button id='submit-data' type="submit" class="btn btn-primary">
         <i class="fa fa-cloud-upload" aria-hidden="true"></i> Upload
+
     </button>
+
+    <img src="{{ url_for('static', filename='img/loading_icon.gif') }}" id="loading-img"  height="100" width="150" style="display:none"/ >
+
+    
+
+<script>
+    $('#submit-data').click(function(){
+        $('#loading-img').show(); //<----here
+        $('#submit-data').hide(); //<----here
+    })
+</script>
+
 
 </form>
 

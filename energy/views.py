@@ -1,13 +1,15 @@
 from flask import render_template, url_for, jsonify, redirect, flash, request, Response
 from flask_login import login_user, logout_user, login_required, current_user
 import os
+import uuid
 import arrow
 from werkzeug.utils import secure_filename
 from . import app, db
 from .models import User, Meter, get_data_range, delete_meter_data
+from .models import get_meter_name
 from .models import get_user_meters, get_public_meters, visible_meters
 from .loader import import_meter_data, export_meter_data
-from .forms import UsernamePasswordForm, FileForm, NewMeter
+from .forms import UsernamePasswordForm, FileForm, NewMeter, MeterDetails
 from flask_wtf import FlaskForm
 from .charts import get_energy_chart_data, get_daily_chart_data
 import sqlalchemy
@@ -56,9 +58,11 @@ def new_meter():
         if not user_id:
             flash('Something went wrong :/', category='error')
             return redirect(url_for('new_meter'))
+        api_key = str(uuid.uuid4())
         meter = Meter(user_id=user_id,
                       meter_name=form.meter_name.data.upper().strip(),
-                      sharing=form.sharing.data)
+                      sharing=form.sharing.data,
+                      api_key=api_key)
         try:
             db.session.add(meter)
             db.session.commit()
@@ -86,6 +90,35 @@ def check_meter_permissions(user_id, meter_id):
     return visible, editable
 
 
+
+@app.route('/manage_meter/<int:id>', methods=["GET", "POST"])
+@login_required
+def manage_meter(id):
+    """ Manage meter details """
+    user_id, user_name = get_user_details()
+    visible, editable = check_meter_permissions(user_id, id)
+    if not editable:
+        msg = 'Not authorised to manage this meter.'
+        flash(msg, category='warning')
+        return redirect(url_for('meters'))
+
+    meter = Meter.query.filter_by(id=id).first()
+    form = MeterDetails()
+    if form.validate_on_submit():
+        meter.meter_name=form.meter_name.data.upper().strip()
+        meter.sharing = form.sharing.data
+        db.session.commit()
+        flash('Meter updated', category='success')
+        return redirect(url_for('manage_meter', id=id))
+    else:
+        form.meter_name.data = meter.meter_name
+        form.sharing.data = meter.sharing
+        form.api_key.data = meter.api_key
+    return render_template('manage_meter.html', id=id, 
+                           meter_name=get_meter_name(id),
+                           form=form)
+
+
 @app.route('/manage_import/<int:id>', methods=["GET", "POST"])
 @login_required
 def manage_import(id):
@@ -104,8 +137,7 @@ def manage_import(id):
         form.upload_file.data.save(file_path)
         file_type = form.file_type.data
         uom = form.uom.data
-        new, skipped, failed = import_meter_data(
-            id, file_path, uom, file_type)
+        new, skipped, failed = import_meter_data(id, file_path, uom, file_type)
         if new > 0:
             msg = '{} new readings added.'.format(new)
             flash(msg, category='success')
@@ -123,7 +155,9 @@ def manage_import(id):
             flash(msg, category='danger')
 
         return redirect(url_for('manage_import', id=id))
-    return render_template('manage_import.html', id=id, form=form)
+    return render_template('manage_import.html', id=id, 
+                           meter_name=get_meter_name(id),
+                           form=form)
 
 
 @app.route('/manage_export/<int:id>', methods=["GET", "POST"])
@@ -144,7 +178,9 @@ def manage_export(id):
         flash(msg, category='success')
         return redirect(url_for('meters'))
 
-    return render_template('manage_export.html', id=id, form=form)
+    return render_template('manage_export.html', id=id, 
+                           meter_name=get_meter_name(id),
+                           form=form)
 
 
 @app.route('/export')
@@ -241,6 +277,7 @@ def usage_day(id):
     usage_data = usage_data[rs.date()]
 
     return render_template('usage_day.html', meter_id=id,
+                           meter_name=get_meter_name(id),
                            report_period='day', report_date=report_date,
                            usage_data=usage_data,
                            period_desc=period_desc,
@@ -306,6 +343,7 @@ def usage_month(id):
     plot_settings = calculate_plot_settings(report_period='month')
 
     return render_template('usage_month.html', meter_id=id,
+                           meter_name=get_meter_name(id),
                            report_period='month', report_date=report_date,
                            usage_data=usage_data, peak_month=peak_month,
                            period_desc=period_desc,
