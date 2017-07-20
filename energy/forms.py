@@ -24,3 +24,12 @@ class NewMeter(FlaskForm):
         'Meter Name / NMI', validators=[DataRequired(), length(min=3, max=20)])
     sharing = SelectField(u'Sharing Type',
                           choices=[('public', 'Public'), ('private', 'Private')])
+
+
+class MeterDetails(FlaskForm):
+    """ Form for creating new meter """
+    api_key = StringField('API Key')
+    meter_name = StringField(
+        'Meter Name / NMI', validators=[DataRequired(), length(min=3, max=20)])
+    sharing = SelectField(u'Sharing Type',
+                          choices=[('public', 'Public'), ('private', 'Private')])

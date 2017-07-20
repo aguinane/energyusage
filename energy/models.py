@@ -12,6 +12,7 @@ class Meter(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     sharing = db.Column(db.String(7)) # Public / Private
+    api_key = db.Column(db.String(36))
     meter_name = db.Column(db.String(20))
 
 
@@ -28,12 +29,19 @@ def get_meter_name(meter_id):
     return meter.meter_name
 
 
+def get_meter_api_key(meter_id):
+    """ Return the API key for the meter """
+    meter = Meter.query.filter(Meter.id == meter_id).first()
+    return meter.api_key
+
+
 def get_user_meters(user_id):
     """ Return a list of meters that the user manages """
     meters = Meter.query.filter(Meter.user_id == user_id)
     for meter in meters:
         user_name = User.query.filter_by(id=meter.user_id).first().username
         yield (meter.id, meter.meter_name, user_name)
+
 
 def get_public_meters():
     """ Return a list of publicly viewable meters """
@@ -58,10 +66,13 @@ class Energy(db.Model):
     """ The energy data for a user
     """
     meter_id = db.Column(db.Integer, db.ForeignKey('meter.id'), primary_key=True)
-    meter_channel = db.Column(db.String(3), primary_key=True)
     reading_start = db.Column(db.DateTime, primary_key=True)
     reading_end = db.Column(db.DateTime)
-    value = db.Column(db.Integer)
+    e1 = db.Column(db.Integer)
+    e2 = db.Column(db.Integer)
+    b1 = db.Column(db.Integer)
+    voltage = db.Column(db.Float)
+    temp = db.Column(db.Float)
 
 
 def get_data_range(meter_id):
@@ -80,7 +91,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     username = db.Column(db.String(64), unique=True)
     _password = db.Column(db.String(128))
-
+    apikey = db.Column(db.String(64))
 
     @hybrid_property
     def password(self):
