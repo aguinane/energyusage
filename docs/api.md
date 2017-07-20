@@ -34,5 +34,5 @@ t           | Temperature | number | °C | 24.1
 Example
 
 ```
-curl -X POST http://localhost:5000/api/v1.0/interval-upload -i -H "X-meterid: 1" -H "Content-type: application/json" -d '{"d":"20170120", "t":"13:00", "interval":"10", "e1":"19"}'
+curl -X POST http://localhost:5000/api/v1.0/interval-upload -i -H "X-meterid: 1" -H "X-apikey: 0ce839b7-d514-4791-ae40-7eb6f21736c7" -H "Content-type: application/json" -d '[{"date":"20170120", "time":"13:00", "interval":"10", "e1":"19"}]'
 ```

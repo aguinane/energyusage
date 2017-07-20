@@ -14,7 +14,7 @@ def get_energy_chart_data(meter_id, start_date, end_date):
     for r in get_energy_data(meter_id, start_date, end_date):
         dTime = arrow.get(r.reading_start)
         ts = int(dTime.timestamp * 1000)
-        impWh = r.value / 1000
+        impWh = r.e1 / 1000
         chartdata['consumption'].append([ts, impWh])
 
     chartdata['power'] = []
