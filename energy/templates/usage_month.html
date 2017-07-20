@@ -197,6 +197,10 @@ $(document).ready(function(){
         }).appendTo("body").fadeIn(200);
     }
 
+
+
+
+
     var previousPoint = null;
     $("#daily_energy").bind("plothover", function (event, pos, item) {
         $("#x").text(pos.x.toFixed(2));
@@ -206,11 +210,13 @@ $(document).ready(function(){
             if (previousPoint != item.dataIndex) {
                 previousPoint = item.dataIndex;
 
-                $("#tooltip").remove();
-                var x = item.datapoint[0].toFixed(2),
-                    y = item.datapoint[1].toFixed(2)
-                    showTooltip(item.pageX, item.pageY,
-                            item.series.label + ": " + y);
+            $("#tooltip").remove();
+            var x = new Date(item.datapoint[0]);
+            var xstr = x.getUTCFullYear() + '-' + (x.getUTCMonth()+1) + '-' + x.getUTCDate();
+            var y = item.datapoint[1].toFixed(2);
+            showTooltip(item.pageX, item.pageY,
+                    "<strong>" + item.series.label + ":</strong> "
+                    + y + " [" + xstr + "]");
             }
         }
         else {

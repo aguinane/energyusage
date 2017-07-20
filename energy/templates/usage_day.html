@@ -180,11 +180,14 @@ $(document).ready(function(){
             if (previousPoint != item.dataIndex) {
                 previousPoint = item.dataIndex;
 
-                $("#tooltip").remove();
-                var x = item.datapoint[0].toFixed(2),
-                    y = item.datapoint[1].toFixed(2)
-                    showTooltip(item.pageX, item.pageY,
-                            item.series.label + ": " + y);
+            $("#tooltip").remove();
+            var x = new Date(item.datapoint[0]);
+            var xstr = x.getUTCFullYear() + '-' + (x.getUTCMonth()+1) + '-' + x.getUTCDate()
+            + " " + x.getUTCHours() + ":"+ x.getUTCMinutes();
+            var y = item.datapoint[1].toFixed(2);
+            showTooltip(item.pageX, item.pageY,
+                    "<strong>" + item.series.label + ":</strong> "
+                    + y + " <small>[" + xstr + "]</small>");
             }
         }
         else {
