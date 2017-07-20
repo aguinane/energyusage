@@ -134,7 +134,7 @@ def import_meter_data(meter_id, file_path, uom='kWh', file_type='interval'):
         results = r.json()
         return results['added'], results['skipped'], results['failed']
     else:
-        return 0, 0
+        return 0, 0, 0
 
 
 def get_unit_conversion(uom):
