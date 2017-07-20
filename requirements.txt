@@ -8,3 +8,4 @@ sqlalchemy>=1.1
 wtforms>=2.1
 qldtariffs>=0.1.5.1
 nemreader>=0.2
+requests>=2.18
