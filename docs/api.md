@@ -18,8 +18,8 @@ Upload meter readings.
 
 Parameter   | Field     | Format    | Unit  | Example
 ---         | ---       | ---       | ---   | ---
-d           | Date      | YYYYMMDD  |       | 20170120
-t           | Time      | hh:mm     |       | 13:01
+date        | Date      | YYYYMMDD  |       | 20170120
+time        | Time      | hh:mm     |       | 13:01
 interval    | Interval  | number       | min   | 10
 e1          | Import (Consumption)  | number | Wh | 19
 e2          | Import 2 (Controlled Load Consumption) | number | Wh | 0
