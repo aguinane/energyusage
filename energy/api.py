@@ -21,10 +21,10 @@ api = Blueprint('api', __name__)
 def data_range():
     """ Get the available data range of a meter """
     try:
-        meter_id = request.headers['X-meterid']
+        meter_id = int(request.headers['X-meterid'])
     except KeyError:
         try:
-            meter_id = request.values['meterid']
+            meter_id = int(request.values['meterid'])
         except KeyError:
             msg = 'ERROR: Must specify a HTTP header of meterid '
             return msg, 400
@@ -58,7 +58,7 @@ def interval_upload():
     else:
         msg = 'Invalid API Key'
         return jsonify({'errors': msg
-                }), 403                
+                }), 403
 
     new_readings = 0
     skipped_readings = 0
