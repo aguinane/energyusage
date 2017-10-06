@@ -8,4 +8,5 @@ sqlalchemy>=1.1
 wtforms>=2.1
 nemreader>=0.2
 requests>=2.18
+simplejson
 https://github.com/aguinane/qld-tariffs/archive/master.zip
