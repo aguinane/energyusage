@@ -2,6 +2,7 @@ from flask import render_template, url_for, jsonify, redirect, flash, request, R
 from flask_login import login_user, logout_user, login_required, current_user
 import os
 import uuid
+import datetime
 import arrow
 from werkzeug.utils import secure_filename
 from . import app, db
@@ -17,7 +18,6 @@ from qldtariffs import get_daily_usages, get_monthly_usages
 from qldtariffs import electricity_charges_general
 from qldtariffs import electricity_charges_tou
 from qldtariffs import electricity_charges_tou_demand
-
 from .usage import get_consumption_data, average_daily_peak_demand
 
 
@@ -114,7 +114,7 @@ def manage_meter(id):
         form.meter_name.data = meter.meter_name
         form.sharing.data = meter.sharing
         form.api_key.data = meter.api_key
-    return render_template('manage_meter.html', id=id, 
+    return render_template('manage_meter.html', id=id,
                            meter_name=get_meter_name(id),
                            form=form)
 
@@ -155,7 +155,7 @@ def manage_import(id):
             flash(msg, category='danger')
 
         return redirect(url_for('manage_import', id=id))
-    return render_template('manage_import.html', id=id, 
+    return render_template('manage_import.html', id=id,
                            meter_name=get_meter_name(id),
                            form=form)
 
@@ -178,7 +178,7 @@ def manage_export(id):
         flash(msg, category='success')
         return redirect(url_for('meters'))
 
-    return render_template('manage_export.html', id=id, 
+    return render_template('manage_export.html', id=id,
                            meter_name=get_meter_name(id),
                            form=form)
 
@@ -312,12 +312,51 @@ def usage_month(id):
                                         str(last_record.month).zfill(2))
         return redirect(url_for('usage_month', id=id, report_date=report_date))
 
+    rs = arrow.get(report_date)
+    rs = arrow.get(rs.year, rs.month, 1)  # Make sure start of month
+    re = rs.replace(months=+1)
+    if rs < first_record:
+        rs = first_record
+    if re > last_record:
+        re = last_record
+    period_desc = rs.format('MMM YY')
+    period_nav = get_navigation_range('month', rs, first_record, last_record)
+
+    plot_settings = calculate_plot_settings(report_period='month')
+    month_bill = monthly_bill_data(id, report_date)
+    return render_template('usage_month.html', meter_id=id,
+                           meter_name=get_meter_name(id),
+                           report_period='month', report_date=report_date,
+                           usage_data=month_bill['usage_data'],
+                           peak_month=month_bill['peak_month'],
+                           period_desc=period_desc,
+                           t11=month_bill['t11'],
+                           t12=month_bill['t12'],
+                           t14=month_bill['t14'],
+                           num_days=month_bill['num_days'],
+                           period_nav=period_nav,
+                           plot_settings=plot_settings,
+                           start_date=rs.format('YYYY-MM-DD'),
+                           end_date=re.format('YYYY-MM-DD')
+                           )
+
+
+@app.route('/meter/<int:meter_id>/monthly_bill.json', methods=["GET", "POST"])
+@login_required
+def monthly_bill(meter_id: int):
+    """ Return the monthly bill costs as json """
+    report_date = request.values['report_date']
+    month_bill = monthly_bill_data(meter_id, report_date)
+    return jsonify(month_bill)
+
+
+def monthly_bill_data(meter_id: int, report_date: str):
     # Get end of reporting period
     # And next and previous periods
     rs = arrow.get(report_date)
     rs = arrow.get(rs.year, rs.month, 1)  # Make sure start of month
     re = rs.replace(months=+1)
-    period_nav = get_navigation_range('month', rs, first_record, last_record)
+    first_record, last_record, num_days = get_meter_stats(meter_id)
     if rs < first_record:
         rs = first_record
     if re > last_record:
@@ -325,53 +364,41 @@ def usage_month(id):
     num_days = (re - rs).days
     period_desc = rs.format('MMM YY')
 
-    readings = list(get_consumption_data(id, rs.datetime, re.datetime))
+    readings = list(get_consumption_data(meter_id, rs.datetime, re.datetime))
     usage_data = get_monthly_usages(readings, 'Ergon', 'T14')[
         (rs.year, rs.month)]
 
     t11 = electricity_charges_general('Ergon', usage_data.days, usage_data.all)
-    t12 = electricity_charges_tou(
-        'Ergon', usage_data.days, usage_data.peak, 0, usage_data.offpeak)
+    t12 = electricity_charges_tou('Ergon', usage_data.days,
+                                  usage_data.peak, 0, usage_data.offpeak)
     if rs.month in [12, 1, 2]:
         peak_month = True
     else:
         peak_month = False
-    print(peak_month, usage_data.demand)
-    t14 = electricity_charges_tou_demand(
-        'Ergon', usage_data.days, usage_data.all, usage_data.demand, peak_month)
+    t14 = electricity_charges_tou_demand('Ergon', usage_data.days,
+                                        usage_data.all, usage_data.demand,
+                                        peak_month)
 
-    plot_settings = calculate_plot_settings(report_period='month')
-
-    return render_template('usage_month.html', meter_id=id,
-                           meter_name=get_meter_name(id),
-                           report_period='month', report_date=report_date,
-                           usage_data=usage_data, peak_month=peak_month,
-                           period_desc=period_desc,
-                           t11=t11, t12=t12, t14=t14,
-                           period_nav=period_nav, num_days=num_days,
-                           plot_settings=plot_settings,
-                           start_date=rs.format('YYYY-MM-DD'),
-                           end_date=re.format('YYYY-MM-DD')
-                           )
+    return {'month': period_desc, 'num_days': num_days, 'peak_month': peak_month,
+            't11': t11, 't12': t12, 't14': t14, 'usage_data': usage_data}
 
 
-@app.route('/billing/', methods=["GET", "POST"])
+@app.route('/meter/<int:meter_id>/billing/', methods=["GET", "POST"])
 @login_required
-def billing():
+def billing(meter_id: int):
+    """ Show billing for all months """
     # Get user details
     user_id, user_name = get_user_details()
-    first_record, last_record, num_days = get_meter_stats(user_id)
+    visible, editable = check_meter_permissions(user_id, meter_id)
+    if not visible:
+        return 'Not authorised to view this page', 403
+
+    # Get meter details
+    first_record, last_record, num_days = get_meter_stats(meter_id)
     if num_days < 1:
         flash('You need to upload some data before you can chart usage.',
               category='warning')
-        return redirect(url_for('manage_import'))
-
-    # Specify default day to report on
-    try:
-        report_date = request.values['report_date']
-    except KeyError:
-        report_date = str(last_record.year) + '-' + \
-            str(last_record.month) + '-' + str(last_record.day)
+        return redirect(url_for('manage_import', id=meter_id))
 
     rs = arrow.get(first_record)
     re = arrow.get(last_record)
@@ -379,12 +406,37 @@ def billing():
 
     plot_settings = calculate_plot_settings(report_period='month')
 
-    return render_template('billing.html', meter_id=user_id,
-                           report_date=report_date,
+    billing_months = list(get_billing_months(first_record, last_record))
+
+    return render_template('billing.html', meter_id=meter_id,
+                           meter_name=get_meter_name(meter_id),
                            plot_settings=plot_settings,
+                           billing_months=billing_months,
                            start_date=rs.format('YYYY-MM-DD'),
                            end_date=re.format('YYYY-MM-DD')
                            )
+
+
+def get_billing_months(start_date, end_date):
+    """ Return list of billing months """
+    for i in range(start_date.year, end_date.year+1):
+        if start_date.year == end_date.year:
+            start_month = start_date.month
+            stop_month = end_date.month
+        elif i == start_date.year:
+            start_month = start_date.month
+            stop_month = 12
+        elif i == end_date.year:
+            start_month = 1
+            stop_month = end_date.month - 1
+        else:
+            start_month = 1
+            stop_month = 12
+
+        for j in range(start_month, stop_month+1):
+            month_start = datetime.datetime(i, j, 1)
+            month_desc = arrow.get(month_start).format('MMM YY')
+            yield month_start, month_desc
 
 
 @app.route('/about/')

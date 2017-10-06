@@ -17,6 +17,10 @@
         <a class="btn btn-secondary nav-link active"
         href="{{ url_for('usage_month', id=meter_id, report_date=report_date) }}" role="button">Month</a>
     </li>
+    <li class="nav-item">
+        <a class="btn btn-secondary nav-link"
+        href="{{ url_for('billing', meter_id=meter_id) }}" role="button">All</a>
+    </li>
 
     <li class="nav-item float-xs-right">
         <a class="btn btn-secondary {% if not period_nav.next_enabled %}disabled{% endif %}"
@@ -49,6 +53,7 @@
   </div><!-- /card-block-->
   <div class="card-block">
       <div class="chart-container">
+        <img id="chart-loading" src="{{ url_for('static', filename='img/loading_icon.gif') }}" style="position: absolute; visibility:visible"/>
         <div id="daily_usage" class="chart-placeholder" style="max-width: 100%; height: 150px;"></div>
       </div>
       <figcaption class="figure-caption">Average demand is between 15:00 to 21:30. Chargeable demand is average of top 4 days.</figcaption>
@@ -182,6 +187,8 @@ $(document).ready(function(){
                             }
                 }
        );
+       // hide loading image when done plotting
+       document.getElementById('chart-loading').style.visibility='hidden';
     });
 
     function showTooltip(x, y, contents) {

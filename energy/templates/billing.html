@@ -2,13 +2,31 @@
 {% set active_page = active_page|default('billing') -%}
 {% block title %}Energy Usage{% endblock %}
 {% block container %}
-<h1 class="page-header">Energy Usage</h1>
+<h1 class="page-header">Energy Usage <small>{{meter_name}}</small></h1>
 
 
 <div class="card">
+    <div class="card-block">
 
+      <ul class="nav nav-pills">
+      <li class="nav-item">
+          <a class="btn btn-secondary nav-link"
+          href="{{ url_for('usage_day', id=meter_id) }}" role="button">Day</a>
+      </li>
+      <li class="nav-item">
+          <a class="btn btn-secondary nav-link"
+          href="{{ url_for('usage_month', id=meter_id) }}" role="button">Month</a>
+      </li>
+      <li class="nav-item">
+          <a class="btn btn-secondary nav-link active"
+          href="{{ url_for('billing', meter_id=meter_id) }}" role="button">All</a>
+      </li>
+    </ul><!-- /nav-pills-->
+
+    </div><!-- /card-block-->
   <div class="card-block">
       <div class="chart-container">
+        <img id="chart-loading" src="{{ url_for('static', filename='img/loading_icon.gif') }}" style="position: absolute; visibility:visible"/>
         <div id="daily_energy" class="chart-placeholder" style="max-width: 100%; height: 150px;"></div>
       </div>
   </div><!-- /card-block-->
@@ -18,11 +36,51 @@
 
 
 
+<div class="card card-block">
+        <h3>Tariff Comparison</h3>
+        <table id="all_bills" class="table table-striped">
+        <thead>
+        <tr>
+            <th>Billing Month</th>
+            <th>General Supply</th>
+            <th>Time of Use</th>
+            <th>Time of Use (Demand)</th>
+        </tr>
+        </thead>
+        </table>
+    </div><!-- /card-->
+
+{% for month_start, month_desc in billing_months %}
+<script>
+
+    $.getJSON("{{ url_for('monthly_bill', meter_id=meter_id, report_date=month_start) }}", function(json) {
+        month_desc = json.month
+        price_t11 = Math.round(json.t11[2][4])/100
+        price_t12 = Math.round(json.t12[4][4])/100
+        price_t14 = Math.round(json.t14[3][4])/100
+        row_data = '<tr><td>' + month_desc + '</td><td>' + price_t11 + '</td><td>' + price_t12 + '</td><td>' +  price_t14 + '</td></tr>'
+        console.log(row_data)
+
+        var tableRef = document.getElementById('all_bills');
+        $(tableRef).append(row_data);
+    });
+
+
+</script>
+{% endfor %}
+
+
+
+
 <!-- Flot code - load json into chart div-->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/flot/0.8.3/jquery.flot.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/flot/0.8.3/jquery.flot.time.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/flot/0.8.3/jquery.flot.stack.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/flot/0.8.3/jquery.flot.selection.min.js"></script>
+
+
+
+
 <script language="javascript" type="text/javascript">
 $(document).ready(function(){
     function weekendAreas(axes) {
@@ -91,6 +149,8 @@ $(document).ready(function(){
                             }
                 }
        );
+       // hide loading image when done plotting
+       document.getElementById('chart-loading').style.visibility='hidden';
     });
 
     function showTooltip(x, y, contents) {
@@ -129,6 +189,7 @@ $(document).ready(function(){
 
     });
 });
+
 </script>
 
 
