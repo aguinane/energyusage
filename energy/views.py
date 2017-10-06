@@ -330,7 +330,8 @@ def usage_month(id):
                            usage_data=month_bill['usage_data'],
                            peak_month=month_bill['peak_month'],
                            period_desc=period_desc,
-                           t11=month_bill['t11'], t12=month_bill['t12'],
+                           t11=month_bill['t11'],
+                           t12=month_bill['t12'],
                            t14=month_bill['t14'],
                            num_days=month_bill['num_days'],
                            period_nav=period_nav,
@@ -368,14 +369,15 @@ def monthly_bill_data(meter_id: int, report_date: str):
         (rs.year, rs.month)]
 
     t11 = electricity_charges_general('Ergon', usage_data.days, usage_data.all)
-    t12 = electricity_charges_tou(
-        'Ergon', usage_data.days, usage_data.peak, 0, usage_data.offpeak)
+    t12 = electricity_charges_tou('Ergon', usage_data.days,
+                                  usage_data.peak, 0, usage_data.offpeak)
     if rs.month in [12, 1, 2]:
         peak_month = True
     else:
         peak_month = False
-    t14 = electricity_charges_tou_demand(
-        'Ergon', usage_data.days, usage_data.all, usage_data.demand, peak_month)
+    t14 = electricity_charges_tou_demand('Ergon', usage_data.days,
+                                        usage_data.all, usage_data.demand,
+                                        peak_month)
 
     return {'month': period_desc, 'num_days': num_days, 'peak_month': peak_month,
             't11': t11, 't12': t12, 't14': t14, 'usage_data': usage_data}

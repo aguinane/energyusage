@@ -38,21 +38,38 @@
 
 <div class="card card-block">
         <h3>Tariff Comparison</h3>
-        <table class="table table-striped">
+        <table id="all_bills" class="table table-striped">
         <thead>
         <tr>
             <th>Billing Month</th>
+            <th>General Supply</th>
+            <th>Time of Use</th>
+            <th>Time of Use (Demand)</th>
         </tr>
         </thead>
-        <tbody>
-        {% for month_start, month_desc in billing_months %}
-        <tr>
-                <td>{{ month_desc }}</td>
-            </tr>
-        {% endfor %}
-        </tbody>
         </table>
     </div><!-- /card-->
+
+{% for month_start, month_desc in billing_months %}
+<script>
+
+    $.getJSON("{{ url_for('monthly_bill', meter_id=meter_id, report_date=month_start) }}", function(json) {
+        month_desc = json.month
+        price_t11 = Math.round(json.t11[2][4])/100
+        price_t12 = Math.round(json.t12[4][4])/100
+        price_t14 = Math.round(json.t14[3][4])/100
+        row_data = '<tr><td>' + month_desc + '</td><td>' + price_t11 + '</td><td>' + price_t12 + '</td><td>' +  price_t14 + '</td></tr>'
+        console.log(row_data)
+
+        var tableRef = document.getElementById('all_bills');
+        $(tableRef).append(row_data);
+    });
+
+
+</script>
+{% endfor %}
+
+
 
 
 <!-- Flot code - load json into chart div-->
