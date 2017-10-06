@@ -2,6 +2,7 @@ from flask import render_template, url_for, jsonify, redirect, flash, request, R
 from flask_login import login_user, logout_user, login_required, current_user
 import os
 import uuid
+import datetime
 import arrow
 from werkzeug.utils import secure_filename
 from . import app, db
@@ -379,12 +380,37 @@ def billing(meter_id: int):
 
     plot_settings = calculate_plot_settings(report_period='month')
 
+    billing_months = list(get_billing_months(first_record, last_record))
+
     return render_template('billing.html', meter_id=meter_id,
                            meter_name=get_meter_name(meter_id),
                            plot_settings=plot_settings,
+                           billing_months=billing_months,
                            start_date=rs.format('YYYY-MM-DD'),
                            end_date=re.format('YYYY-MM-DD')
                            )
+
+
+def get_billing_months(start_date, end_date):
+    """ Return list of billing months """
+    for i in range(start_date.year, end_date.year+1):
+        if start_date.year == end_date.year:
+            start_month = start_date.month
+            stop_month = end_date.month
+        elif i == start_date.year:
+            start_month = start_date.month
+            stop_month = 12
+        elif i == end_date.year:
+            start_month = 1
+            stop_month = end_date.month - 1
+        else:
+            start_month = 1
+            stop_month = 12
+
+        for j in range(start_month, stop_month+1):
+            month_start = datetime.datetime(i, j, 1)
+            month_desc = arrow.get(month_start).format('MMM YY')
+            yield month_start, month_desc
 
 
 @app.route('/about/')

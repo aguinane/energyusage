@@ -36,6 +36,24 @@
 
 
 
+<div class="card card-block">
+        <h3>Tariff Comparison</h3>
+        <table class="table table-striped">
+        <thead>
+        <tr>
+            <th>Billing Month</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for month_start, month_desc in billing_months %}
+        <tr>
+                <td>{{ month_desc }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+        </table>
+    </div><!-- /card-->
+
 
 <!-- Flot code - load json into chart div-->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/flot/0.8.3/jquery.flot.min.js"></script>
