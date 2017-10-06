@@ -18,7 +18,6 @@ from qldtariffs import get_daily_usages, get_monthly_usages
 from qldtariffs import electricity_charges_general
 from qldtariffs import electricity_charges_tou
 from qldtariffs import electricity_charges_tou_demand
-
 from .usage import get_consumption_data, average_daily_peak_demand
 
 
@@ -313,12 +312,50 @@ def usage_month(id):
                                         str(last_record.month).zfill(2))
         return redirect(url_for('usage_month', id=id, report_date=report_date))
 
+    rs = arrow.get(report_date)
+    rs = arrow.get(rs.year, rs.month, 1)  # Make sure start of month
+    re = rs.replace(months=+1)
+    if rs < first_record:
+        rs = first_record
+    if re > last_record:
+        re = last_record
+    period_desc = rs.format('MMM YY')
+    period_nav = get_navigation_range('month', rs, first_record, last_record)
+
+    plot_settings = calculate_plot_settings(report_period='month')
+    month_bill = monthly_bill_data(id, report_date)
+    return render_template('usage_month.html', meter_id=id,
+                           meter_name=get_meter_name(id),
+                           report_period='month', report_date=report_date,
+                           usage_data=month_bill['usage_data'],
+                           peak_month=month_bill['peak_month'],
+                           period_desc=period_desc,
+                           t11=month_bill['t11'], t12=month_bill['t12'],
+                           t14=month_bill['t14'],
+                           num_days=month_bill['num_days'],
+                           period_nav=period_nav,
+                           plot_settings=plot_settings,
+                           start_date=rs.format('YYYY-MM-DD'),
+                           end_date=re.format('YYYY-MM-DD')
+                           )
+
+
+@app.route('/meter/<int:meter_id>/monthly_bill.json', methods=["GET", "POST"])
+@login_required
+def monthly_bill(meter_id: int):
+    """ Return the monthly bill costs as json """
+    report_date = request.values['report_date']
+    month_bill = monthly_bill_data(meter_id, report_date)
+    return jsonify(month_bill)
+
+
+def monthly_bill_data(meter_id: int, report_date: str):
     # Get end of reporting period
     # And next and previous periods
     rs = arrow.get(report_date)
     rs = arrow.get(rs.year, rs.month, 1)  # Make sure start of month
     re = rs.replace(months=+1)
-    period_nav = get_navigation_range('month', rs, first_record, last_record)
+    first_record, last_record, num_days = get_meter_stats(meter_id)
     if rs < first_record:
         rs = first_record
     if re > last_record:
@@ -326,7 +363,7 @@ def usage_month(id):
     num_days = (re - rs).days
     period_desc = rs.format('MMM YY')
 
-    readings = list(get_consumption_data(id, rs.datetime, re.datetime))
+    readings = list(get_consumption_data(meter_id, rs.datetime, re.datetime))
     usage_data = get_monthly_usages(readings, 'Ergon', 'T14')[
         (rs.year, rs.month)]
 
@@ -337,24 +374,11 @@ def usage_month(id):
         peak_month = True
     else:
         peak_month = False
-    print(peak_month, usage_data.demand)
     t14 = electricity_charges_tou_demand(
         'Ergon', usage_data.days, usage_data.all, usage_data.demand, peak_month)
 
-    plot_settings = calculate_plot_settings(report_period='month')
-
-    return render_template('usage_month.html', meter_id=id,
-                           meter_name=get_meter_name(id),
-                           report_period='month', report_date=report_date,
-                           usage_data=usage_data, peak_month=peak_month,
-                           period_desc=period_desc,
-                           t11=t11, t12=t12, t14=t14,
-                           period_nav=period_nav, num_days=num_days,
-                           plot_settings=plot_settings,
-                           start_date=rs.format('YYYY-MM-DD'),
-                           end_date=re.format('YYYY-MM-DD')
-                           )
-
+    return {'month': period_desc, 'num_days': num_days, 'peak_month': peak_month,
+            't11': t11, 't12': t12, 't14': t14, 'usage_data': usage_data}
 
 
 @app.route('/meter/<int:meter_id>/billing/', methods=["GET", "POST"])
