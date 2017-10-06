@@ -114,7 +114,7 @@ def manage_meter(id):
         form.meter_name.data = meter.meter_name
         form.sharing.data = meter.sharing
         form.api_key.data = meter.api_key
-    return render_template('manage_meter.html', id=id, 
+    return render_template('manage_meter.html', id=id,
                            meter_name=get_meter_name(id),
                            form=form)
 
@@ -155,7 +155,7 @@ def manage_import(id):
             flash(msg, category='danger')
 
         return redirect(url_for('manage_import', id=id))
-    return render_template('manage_import.html', id=id, 
+    return render_template('manage_import.html', id=id,
                            meter_name=get_meter_name(id),
                            form=form)
 
@@ -178,7 +178,7 @@ def manage_export(id):
         flash(msg, category='success')
         return redirect(url_for('meters'))
 
-    return render_template('manage_export.html', id=id, 
+    return render_template('manage_export.html', id=id,
                            meter_name=get_meter_name(id),
                            form=form)
 
@@ -355,23 +355,23 @@ def usage_month(id):
                            )
 
 
-@app.route('/billing/', methods=["GET", "POST"])
+
+@app.route('/meter/<int:meter_id>/billing/', methods=["GET", "POST"])
 @login_required
-def billing():
+def billing(meter_id: int):
+    """ Show billing for all months """
     # Get user details
     user_id, user_name = get_user_details()
-    first_record, last_record, num_days = get_meter_stats(user_id)
+    visible, editable = check_meter_permissions(user_id, meter_id)
+    if not visible:
+        return 'Not authorised to view this page', 403
+
+    # Get meter details
+    first_record, last_record, num_days = get_meter_stats(meter_id)
     if num_days < 1:
         flash('You need to upload some data before you can chart usage.',
               category='warning')
-        return redirect(url_for('manage_import'))
-
-    # Specify default day to report on
-    try:
-        report_date = request.values['report_date']
-    except KeyError:
-        report_date = str(last_record.year) + '-' + \
-            str(last_record.month) + '-' + str(last_record.day)
+        return redirect(url_for('manage_import', id=meter_id))
 
     rs = arrow.get(first_record)
     re = arrow.get(last_record)
@@ -379,8 +379,8 @@ def billing():
 
     plot_settings = calculate_plot_settings(report_period='month')
 
-    return render_template('billing.html', meter_id=user_id,
-                           report_date=report_date,
+    return render_template('billing.html', meter_id=meter_id,
+                           meter_name=get_meter_name(meter_id),
                            plot_settings=plot_settings,
                            start_date=rs.format('YYYY-MM-DD'),
                            end_date=re.format('YYYY-MM-DD')
