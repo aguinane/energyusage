@@ -55,9 +55,9 @@
 
     $.getJSON("{{ url_for('monthly_bill', meter_id=meter_id, report_date=month_start) }}", function(json) {
         month_desc = json.month
-        price_t11 = Math.round(json.t11[2][4])/100
-        price_t12 = Math.round(json.t12[4][4])/100
-        price_t14 = Math.round(json.t14[3][4])/100
+        price_t11 = Math.round(json.t11.total_charges.cost_incl_gst)/100
+        price_t12 = Math.round(json.t12.total_charges.cost_incl_gst)/100
+        price_t14 = Math.round(json.t14.total_charges.cost_incl_gst)/100
         row_data = '<tr><td>' + month_desc + '</td><td>' + price_t11 + '</td><td>' + price_t12 + '</td><td>' +  price_t14 + '</td></tr>'
         console.log(row_data)
 
