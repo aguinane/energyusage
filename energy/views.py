@@ -344,6 +344,12 @@ def usage_month(id):
 @app.route('/meter/<int:meter_id>/monthly_bill.json', methods=["GET", "POST"])
 @login_required
 def monthly_bill(meter_id: int):
+    # Get user details
+    user_id, user_name = get_user_details()
+    visible, editable = check_meter_permissions(user_id, meter_id)
+    if not visible:
+        return 'Not authorised to view this page', 403
+
     """ Return the monthly bill costs as json """
     report_date = request.values['report_date']
     month_bill = monthly_bill_data(meter_id, report_date)
@@ -384,7 +390,6 @@ def monthly_bill_data(meter_id: int, report_date: str):
 
 
 @app.route('/meter/<int:meter_id>/billing/', methods=["GET", "POST"])
-@login_required
 def billing(meter_id: int):
     """ Show billing for all months """
     # Get user details
@@ -435,6 +440,7 @@ def get_billing_months(start_date, end_date):
 
         for j in range(start_month, stop_month+1):
             month_start = datetime.datetime(i, j, 1)
+            month_start = arrow.get(month_start).format('YYYY-MM-DD')
             month_desc = arrow.get(month_start).format('MMM YY')
             yield month_start, month_desc
 
