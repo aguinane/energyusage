@@ -1,12 +1,13 @@
 flask>=0.12
 flask_wtf>=0.14
-flask_sqlalchemy>=2.1
+flask_sqlalchemy==2.1
 flask_bcrypt>=0.7
 flask_login>=0.4
 arrow>=0.10
-sqlalchemy>=1.1
+sqlalchemy==1.1.18
 wtforms>=2.1
 nemreader>=0.2
 requests>=2.18
 simplejson
-https://github.com/aguinane/qld-tariffs/archive/master.zip
+energy-shaper>=0.1
+https://github.com/aguinane/qld-tariffs/archive/master.zip#egg=qldtariffs>=0.2

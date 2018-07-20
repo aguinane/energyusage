@@ -19,10 +19,10 @@ def get_energy_chart_data(meter_id, start_date, end_date):
 
     chartdata['power'] = []
     for r in get_power_data(meter_id, start_date, end_date):
-        dTime = arrow.get(r[0])
+        dTime = arrow.get(r.start)
         ts = int(dTime.timestamp * 1000)
         ts = ts - (1000 * 60 * 30)  # Offset 30 mins so steps line up properly on chart
-        impW = r[1] / 1000
+        impW = r.usage / 1000
         chartdata['power'].append([ts, impW])
 
     # Finally add one more point to finish the step increment

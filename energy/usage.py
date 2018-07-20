@@ -1,7 +1,7 @@
 import datetime
 import arrow
 from .models import Energy
-from qldtariffs import split_into_billing_intervals
+from energy_shaper import group_into_profiled_intervals
 
 def average_daily_peak_demand(peak_usage_kWh):
     """ Calculate the average daily peak demand in kW
@@ -16,7 +16,7 @@ def get_power_data(meter_id, start_date, end_date):
     readings = []
     for reading in get_energy_data(meter_id, start_date, end_date):
         readings.append((reading.reading_start, reading.reading_end, reading.e1))
-    return split_into_billing_intervals(readings)
+    return group_into_profiled_intervals(readings)
 
 
 def get_consumption_data(meter_id, start_date, end_date):
