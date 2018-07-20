@@ -8,6 +8,7 @@ import arrow
 import requests
 from flask import flash, url_for, jsonify
 import nemreader as nr
+from energy_shaper import group_into_profiled_intervals
 from . import db
 from .models import User, Energy, get_meter_name, get_meter_api_key
 
@@ -46,6 +47,7 @@ def process_meter_data(meter_id, file_path):
         msg = 'Could not read NEM file. Is it in the right format?'
         flash(msg, 'danger')
         return []
+
     try:
         channels = m.readings[meter_name]
     except KeyError:
@@ -62,24 +64,18 @@ def process_meter_data(meter_id, file_path):
         flash(msg, 'danger')
         return []
 
-    for i, reading in enumerate(m.readings[meter_name]['E1']):
-        reading_end = reading.t_end
-        e1 = reading.read_value
-        try:
-            e2 = m.readings[meter_name]['E2'][i].read_value
-        except KeyError:
-            e2 = None
-        try:
-            b1 = m.readings[meter_name]['B1'][i].read_value
-        except KeyError:
-            b1 = None
+    split_readings = group_into_profiled_intervals(m.readings[meter_name]['E1'], interval_m=10)
+    for i, read in enumerate(split_readings):
+       
+        reading_end = read.end
+        e1 = read.usage * 1000
 
         payload.append({'date': reading_end.strftime('%Y%m%d'),
                         'time': reading_end.strftime('%H:%M'),
                         'interval': '10',
                         'e1': e1,
-                        'e2': e2,
-                        'b1': b1
+                        'e2': None,
+                        'b1': None
                         })
 
     return payload
