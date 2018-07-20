@@ -12,10 +12,6 @@ class UsernamePasswordForm(FlaskForm):
 class FileForm(FlaskForm):
     """ Upload form to specify csv file """
     upload_file = FileField('Data File', validators=[DataRequired()])
-    file_type = SelectField(u'File Type',
-                            choices=[('nem', 'NEM12/NEM13'), ('interval', 'Interval Data')])
-    uom = SelectField(u'Unit of Measure (for interval data only)',
-                      choices=[('kWh', 'kWh'), ('Wh', 'Wh'), ('Wm', 'Wm')])
 
 
 class NewMeter(FlaskForm):

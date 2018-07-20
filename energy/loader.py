@@ -34,91 +34,58 @@ def construct_csv(header, data):
 
 
 
-def process_meter_data(meter_id, file_path, uom='kWh', file_type='interval'):
+def process_meter_data(meter_id, file_path):
     """ Process meter data file into json object payload to load """
 
     payload = []
-    if file_type == 'interval':
-        # Determine the interval spacing between rows
-        interval = determine_interval(file_path)
-        if interval not in [1, 5, 10, 15, 30]:
-            msg = 'Average time interval must be 1, 5, 10, 15 or 30 minutes, not {}'.format(
-                interval)
-            flash(msg, 'danger')
-            return []
-        
-        for row in load_from_file(file_path):
-            try:
-                reading_end = parse_date(row[0])
-            except ValueError:
-                msg = 'Error: {} is not a date format'.format(row[0])
-                flash(msg)
-                return []
-            e1 = None
+
+    meter_name = get_meter_name(meter_id)
+    try:
+        m = nr.read_nem_file(file_path)
+    except ValueError:
+        msg = 'Could not read NEM file. Is it in the right format?'
+        flash(msg, 'danger')
+        return []
+    try:
+        channels = m.readings[meter_name]
+    except KeyError:
+        nmis = ','.join(m.transactions.keys())
+        msg = "Could not find a NMI matching '{}' in the NEM file. ".format(meter_name)
+        msg += 'Check that your meter name matches one of these NMIs: {}'.format(nmis)
+        flash(msg, 'danger')
+        return []
+    
+    try:
+        test_rows = m.readings[meter_name]['E1']
+    except KeyError:
+        msg = "NEM data must have an E1 channel"
+        flash(msg, 'danger')
+        return []
+
+    for i, reading in enumerate(m.readings[meter_name]['E1']):
+        reading_end = reading.t_end
+        e1 = reading.read_value
+        try:
+            e2 = m.readings[meter_name]['E2'][i].read_value
+        except KeyError:
             e2 = None
+        try:
+            b1 = m.readings[meter_name]['B1'][i].read_value
+        except KeyError:
             b1 = None
-            try:
-                e1 = row[1]
-                e2 = row[2]
-            except IndexError:
-                pass
 
-            payload.append({'date': reading_end.strftime('%Y%m%d'),
-                            'time': reading_end.strftime('%H:%M'),
-                            'interval': str(interval),
-                            'e1': e1,
-                            'e2': e2,
-                            'b1': b1
-                            })
-
-    elif file_type == 'nem':
-        meter_name = get_meter_name(meter_id)
-        try:
-            m = nr.read_nem_file(file_path)
-        except ValueError:
-            msg = 'Could not read NEM file. Is it in the right format?'
-            flash(msg, 'danger')
-            return []
-        try:
-            channels = m.readings[meter_name]
-        except KeyError:
-            nmis = ','.join(m.transactions.keys())
-            msg = "Could not find a NMI matching '{}' in the NEM file. ".format(meter_name)
-            msg += 'Check that your meter name matches one of these NMIs: {}'.format(nmis)
-            flash(msg, 'danger')
-            return []
-        
-        try:
-            test_rows = m.readings[meter_name]['E1']
-        except KeyError:
-            msg = "NEM data must have an E1 channel"
-            flash(msg, 'danger')
-            return []
-
-        for i, reading in enumerate(m.readings[meter_name]['E1']):
-            reading_end = reading.t_end
-            e1 = reading.read_value
-            try:
-                e2 = m.readings[meter_name]['E2'][i].read_value
-            except KeyError:
-                e2 = None
-            try:
-                b1 = m.readings[meter_name]['B1'][i].read_value
-            except KeyError:
-                b1 = None
-
-            payload.append({'date': reading_end.strftime('%Y%m%d'),
-                            'time': reading_end.strftime('%H:%M'),
-                            'interval': '10',
-                            'e1': e1,
-                            'e2': e2,
-                            'b1': b1
-                            })
+        payload.append({'date': reading_end.strftime('%Y%m%d'),
+                        'time': reading_end.strftime('%H:%M'),
+                        'interval': '10',
+                        'e1': e1,
+                        'e2': e2,
+                        'b1': b1
+                        })
 
     return payload
 
 
-def import_meter_data(meter_id, file_path, uom='kWh', file_type='interval'):
+def import_meter_data(meter_id, file_path):
     """ Load data from the user uploaded csv file into the database
     """
 
@@ -126,7 +93,7 @@ def import_meter_data(meter_id, file_path, uom='kWh', file_type='interval'):
     headers = {'X-meterid': str(meter_id),
                'X-apikey': get_meter_api_key(meter_id)}
 
-    payload = process_meter_data(meter_id, file_path, uom, file_type)
+    payload = process_meter_data(meter_id, file_path)
 
     r = requests.post(url, json=payload, headers=headers)
     

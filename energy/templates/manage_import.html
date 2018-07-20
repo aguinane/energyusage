@@ -28,23 +28,19 @@
 
 <h3>Import</h3>
 
-<div class="row">
-    <div class="col-sm-6">
+<p>You can upload NEM12 or NEM13 files.</p>
+
+<p>You can request them for free from
+    <a href="https://www.ergon.com.au/network/connections/metering/accessing-your-metering-data">Ergon</a>
+and <a href="https://www.energex.com.au/home/our-services/meters/accessing-your-metering-data">Energex</a> 
+
+</p>
+
 <form method="POST" action="/manage_import/{{id}}" enctype="multipart/form-data">
 
     <div class="form-group">
         {{ form.upload_file.label }}:
         {{ form.upload_file(class="form-control") }}
-    </div>
-
-    <div class="form-group">
-        {{ form.file_type.label }}:
-        {{ form.file_type(class="form-control") }}
-    </div>
-
-    <div class="form-group">
-        {{ form.uom.label }}:
-        {{ form.uom(class="form-control") }}
     </div>
 
     <button id='submit-data' type="submit" class="btn btn-primary">
@@ -66,36 +62,6 @@
 
 </form>
 
-    </div><!-- /col-->
-
-    <div class="col-sm-6">
-
-
-<p>You can upload NEM12, NEM13 or raw interval data.</p>
-
-<p>
-NEM Files should be read automatically. (Coming soon)
-</p>
-
-<p>
-Raw interval data should be a .csv file in one of the following formats with headings:
-</p>
-
-
-<p class="form-text text-muted"><small>
-BILLING_END_DATETIME, CONSUMPTION<br />
-BILLING_END_DATETIME, CONSUMPTION, GENERATION<br />
-</small></p>
-
-
-For example:
-<p class="form-text text-muted"><small>
-Timestamp, Import Wh, Export Wh <br />
-2016-08-10 13:20:00, 29, 0 <br />
-</small></p>
-
-    </div><!-- /col-->
-</div><!-- /row-->
 
 
 

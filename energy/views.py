@@ -135,9 +135,8 @@ def manage_import(id):
         filename = secure_filename(str(id) + '.csv')
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         form.upload_file.data.save(file_path)
-        file_type = form.file_type.data
-        uom = form.uom.data
-        new, skipped, failed = import_meter_data(id, file_path, uom, file_type)
+
+        new, skipped, failed = import_meter_data(id, file_path)
         if new > 0:
             msg = '{} new readings added.'.format(new)
             flash(msg, category='success')
