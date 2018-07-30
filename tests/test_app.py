@@ -1,26 +1,11 @@
-import unittest
-import os
-import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from energy import app
-from energy.views import *
+from context import test_site
 
 
-class FlaskTestCase(unittest.TestCase):
-    """ Test the flask app
+def test_index():
+    """ Test some basic pages load correctly
     """
-    def setUp(self):
-        self.app = app.test_client()
+    response = test_site.get('/')
+    assert response.status_code == 200
 
-    def test_index_status_code(self):
-        """ Test some basic pages load correctly
-        """
-        rv = self.app.get('/')
-        self.assertEqual(rv.status_code, 200)
-
-        rv = self.app.get('/about/')
-        self.assertEqual(rv.status_code, 200)
-
-
-if __name__ == '__main__':
-    unittest.main()
+    response = test_site.get('/about/')
+    assert response.status_code == 200
