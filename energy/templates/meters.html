@@ -8,8 +8,8 @@
 <ul>
 {% for meter in user_meters %}
     <li>
-        <a href="{{ url_for('usage_day', meter_id=meter[0]) }}"> {{ meter[1] }} </a>
-        <a class="btn btn-primary btn-sm" href="{{ url_for('manage_meter', id=meter[0]) }}"><i class="fa fa-pencil" aria-hidden="true"></i></a>
+        <a href="{{ url_for('usage_month', meter_id=meter[0]) }}"> {{ meter[1] }} </a>
+        <a class="btn btn-primary btn-sm" href="{{ url_for('manage_meter', meter_id=meter[0]) }}"><i class="fa fa-pencil" aria-hidden="true"></i></a>
 
     </li>
 {% endfor %}
@@ -26,7 +26,7 @@
 <ul>
 {% for meter in public_meters %}
     <li>
-        <a href="{{ url_for('usage_day', meter_id=meter[0]) }}"> {{ meter[1] }} </a>
+        <a href="{{ url_for('usage_month', meter_id=meter[0]) }}"> {{ meter[1] }} </a>
         <span class="badge badge-default">[{{ meter[2] }}]</span>
     </li>
 {% endfor %}

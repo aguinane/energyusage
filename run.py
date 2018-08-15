@@ -26,5 +26,5 @@ if __name__ == '__main__':
     with open('logging.yaml', 'rt') as f:
         config = yaml.safe_load(f.read())
     logging.config.dictConfig(config)
-    app.run(host='0.0.0.0', debug=True, threaded=True)
+    app.run(host='0.0.0.0', debug=True, threaded=False)
 

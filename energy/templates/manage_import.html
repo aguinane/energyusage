@@ -16,13 +16,13 @@
 
 <ul class="nav nav-tabs">
   <li class="nav-item">
-    <a class="nav-link" href="{{ url_for('manage_meter', id=id) }}">Meter</a>
+    <a class="nav-link" href="{{ url_for('manage_meter', meter_id=id) }}">Meter</a>
   </li>
   <li class="nav-item">
-    <a class="nav-link active" href="{{ url_for('manage_import', id=id) }}">Import</a>
+    <a class="nav-link active" href="{{ url_for('manage_import', meter_id=id) }}">Import</a>
   </li>
   <li class="nav-item">
-    <a class="nav-link" href="{{ url_for('manage_export', id=id) }}">Export</a>
+    <a class="nav-link" href="{{ url_for('manage_export', meter_id=id) }}">Export</a>
   </li>
 </ul>
 
@@ -31,7 +31,7 @@
 <p>You can upload NEM12 or NEM13 files.</p>
 
 <p>You can request them for free from
-    <a href="https://www.ergon.com.au/network/connections/metering/accessing-your-metering-data">Ergon</a>
+    <a href="https://www.ergon.com.au/network/connections/metering/accessing-your-metering-data">ergon</a>
 and <a href="https://www.energex.com.au/home/our-services/meters/accessing-your-metering-data">Energex</a> 
 
 </p>

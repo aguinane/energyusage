@@ -16,13 +16,13 @@
 
 <ul class="nav nav-tabs">
   <li class="nav-item">
-    <a class="nav-link active" href="{{ url_for('manage_meter', id=id) }}">Meter</a>
+    <a class="nav-link active" href="{{ url_for('manage_meter', meter_id=id) }}">Meter</a>
   </li>
   <li class="nav-item">
-    <a class="nav-link" href="{{ url_for('manage_import', id=id) }}">Import</a>
+    <a class="nav-link" href="{{ url_for('manage_import', meter_id=id) }}">Import</a>
   </li>
   <li class="nav-item">
-    <a class="nav-link" href="{{ url_for('manage_export', id=id) }}">Export</a>
+    <a class="nav-link" href="{{ url_for('manage_export', meter_id=id) }}">Export</a>
   </li>
 </ul>
 
@@ -32,7 +32,7 @@
 <div class="row">
     <div class="col-sm-6">
 
-    <form method="POST" action="{{ url_for('manage_meter', id=id) }}">
+    <form method="POST" action="{{ url_for('manage_meter', meter_id=id) }}">
         <div class="form-group">{{ form.meter_name.label }}: {{ form.meter_name(class="form-control", max=20) }}</div>
         <div class="form-group">{{ form.sharing.label }}: {{ form.sharing(class="form-control") }}</div>
         <div class="form-group">{{ form.api_key.label }}: {{ form.api_key(disabled=True, class="form-control") }}</div>

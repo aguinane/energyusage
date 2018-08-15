@@ -1,8 +1,10 @@
+import datetime
+import os
 from sqlalchemy import create_engine
 from sqlalchemy import MetaData, Table, Column, DateTime, Float, Integer, between, func
 from sqlalchemy.sql import select
 from sqlalchemy.ext.hybrid import hybrid_property
-import datetime
+
 from . import bcrypt, db, app
 
 
@@ -18,10 +20,11 @@ class Meter(db.Model):
 
 def delete_meter_data(meter_id):
     """ Delete meter and all data """
-    Energy.query.filter(Energy.meter_id==meter_id).delete()
     Meter.query.filter(Meter.meter_id==meter_id).delete()
     db.session.commit()
-
+    db_loc = f'data/meter_{meter_id}.db'
+    if os.path.isfile(db_loc):
+        os.remove(db_loc)
 
 def get_meter_name(meter_id):
     """ Return a list of meters that the user manages """
@@ -61,28 +64,6 @@ def visible_meters(user_id):
         user_name = User.query.filter_by(user_id=meter.user_id).first().username
         yield (meter.meter_id, meter.meter_name, user_name)
 
-
-class Energy(db.Model):
-    """ The energy data for a user
-    """
-    meter_id = db.Column(db.Integer, db.ForeignKey('meter.meter_id'), primary_key=True)
-    reading_start = db.Column(db.DateTime, primary_key=True)
-    reading_end = db.Column(db.DateTime)
-    e1 = db.Column(db.Integer)
-    e2 = db.Column(db.Integer)
-    b1 = db.Column(db.Integer)
-    voltage = db.Column(db.Float)
-    temp = db.Column(db.Float)
-
-
-def get_data_range(meter_id):
-    """ Get the minimum and maximum date ranges with data
-    """
-    min_date = db.session.query(func.min(Energy.reading_start)).filter(Energy.meter_id==meter_id).scalar()
-    max_date = db.session.query(func.max(Energy.reading_end)).filter(Energy.meter_id==meter_id).scalar()
-    if max_date:
-        max_date = max_date - datetime.timedelta(hours=1/6)
-    return (min_date, max_date)
 
 
 class User(db.Model):

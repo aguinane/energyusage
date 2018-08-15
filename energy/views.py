@@ -1,24 +1,29 @@
-from flask import render_template, url_for, jsonify, redirect, flash, request, Response
-from flask_login import login_user, logout_user, login_required, current_user
 import os
 import uuid
 import datetime
+
 import arrow
-from werkzeug.utils import secure_filename
-from . import app, db
-from .models import User, Meter, get_data_range, delete_meter_data
-from .models import get_meter_name
-from .models import get_user_meters, get_public_meters, visible_meters
-from .loader import import_meter_data, export_meter_data
-from .forms import UsernamePasswordForm, FileForm, NewMeter, MeterDetails
+from statistics import mean
+from flask import render_template, url_for, jsonify, redirect, flash, request, Response
+from flask_login import login_user, logout_user, login_required, current_user
 from flask_wtf import FlaskForm
-from .charts import get_energy_chart_data, get_daily_chart_data
+from werkzeug.utils import secure_filename
 import sqlalchemy
-from qldtariffs import get_daily_usages, get_monthly_usages
+from qldtariffs import get_daily_charges, get_monthly_charges
 from qldtariffs import electricity_charges_general
 from qldtariffs import electricity_charges_tou
 from qldtariffs import electricity_charges_tou_demand
-from .usage import get_consumption_data, average_daily_peak_demand
+from qldtariffs import financial_year_starting
+from metering import load_nem_data
+from metering import get_data_range
+from metering import get_daily_energy_readings
+from . import app, db
+from .models import User, Meter, delete_meter_data
+from .models import get_meter_name
+from .models import get_user_meters, get_public_meters, visible_meters
+from .forms import UsernamePasswordForm, FileForm, NewMeter, MeterDetails
+from .charts import get_daily_chart_data
+from .usage import average_daily_peak_demand
 
 
 def get_user_details():
@@ -90,41 +95,40 @@ def check_meter_permissions(user_id, meter_id):
     return visible, editable
 
 
-
-@app.route('/manage_meter/<int:id>', methods=["GET", "POST"])
+@app.route('/manage_meter/<int:meter_id>', methods=["GET", "POST"])
 @login_required
-def manage_meter(id):
+def manage_meter(meter_id):
     """ Manage meter details """
     user_id, user_name = get_user_details()
-    visible, editable = check_meter_permissions(user_id, id)
+    visible, editable = check_meter_permissions(user_id, meter_id)
     if not editable:
         msg = 'Not authorised to manage this meter.'
         flash(msg, category='warning')
         return redirect(url_for('meters'))
 
-    meter = Meter.query.filter_by(meter_id=id).first()
+    meter = Meter.query.filter_by(meter_id=meter_id).first()
     form = MeterDetails()
     if form.validate_on_submit():
-        meter.meter_name=form.meter_name.data.upper().strip()
+        meter.meter_name = form.meter_name.data.upper().strip()
         meter.sharing = form.sharing.data
         db.session.commit()
         flash('Meter updated', category='success')
-        return redirect(url_for('manage_meter', id=id))
+        return redirect(url_for('manage_meter', meter_id=meter_id))
     else:
         form.meter_name.data = meter.meter_name
         form.sharing.data = meter.sharing
         form.api_key.data = meter.api_key
-    return render_template('manage_meter.html', id=id,
-                           meter_name=get_meter_name(id),
+    return render_template('manage_meter.html', id=meter_id,
+                           meter_name=get_meter_name(meter_id),
                            form=form)
 
 
-@app.route('/manage_import/<int:id>', methods=["GET", "POST"])
+@app.route('/manage_import/<int:meter_id>', methods=["GET", "POST"])
 @login_required
-def manage_import(id):
+def manage_import(meter_id):
     """ Import meter data """
     user_id, user_name = get_user_details()
-    visible, editable = check_meter_permissions(user_id, id)
+    visible, editable = check_meter_permissions(user_id, meter_id)
     if not editable:
         msg = 'Not authorised to manage this meter.'
         flash(msg, category='warning')
@@ -132,39 +136,26 @@ def manage_import(id):
 
     form = FileForm()
     if form.validate_on_submit():
-        filename = secure_filename(str(id) + '.csv')
+        filename = secure_filename(str(meter_id) + '.csv')
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         form.upload_file.data.save(file_path)
 
-        new, skipped, failed = import_meter_data(id, file_path)
-        if new > 0:
-            msg = '{} new readings added.'.format(new)
-            flash(msg, category='success')
-        else:
-            msg = 'No new readings could be added. '
-            flash(msg, category='warning')
+        nmi = get_meter_name(meter_id)
+        load_nem_data(meter_id, nmi, file_path)
+        flash('Readings added', category='success')
 
-        if skipped > 0:
-            msg = '{} records already existed and were skipped.'.format(
-                skipped)
-            flash(msg, category='warning')
-
-        if failed > 0:
-            msg = '{} records were in the wrong format.'.format(failed)
-            flash(msg, category='danger')
-
-        return redirect(url_for('manage_import', id=id))
-    return render_template('manage_import.html', id=id,
-                           meter_name=get_meter_name(id),
+        return redirect(url_for('manage_import', meter_id=meter_id))
+    return render_template('manage_import.html', id=meter_id,
+                           meter_name=get_meter_name(meter_id),
                            form=form)
 
 
-@app.route('/manage_export/<int:id>', methods=["GET", "POST"])
+@app.route('/manage_export/<int:meter_id>', methods=["GET", "POST"])
 @login_required
-def manage_export(id):
+def manage_export(meter_id):
     """ Manage meter data """
     user_id, user_name = get_user_details()
-    visible, editable = check_meter_permissions(user_id, id)
+    visible, editable = check_meter_permissions(user_id, meter_id)
     if not editable:
         msg = 'Not authorised to manage this meter.'
         flash(msg, category='warning')
@@ -172,13 +163,13 @@ def manage_export(id):
 
     form = FlaskForm()
     if form.validate_on_submit():
-        delete_meter_data(id)
+        delete_meter_data(meter_id)
         msg = 'Meter deleted!'
         flash(msg, category='success')
         return redirect(url_for('meters'))
 
-    return render_template('manage_export.html', id=id,
-                           meter_name=get_meter_name(id),
+    return render_template('manage_export.html', id=meter_id,
+                           meter_name=get_meter_name(meter_id),
                            form=form)
 
 
@@ -233,58 +224,6 @@ def signin():
 def signout():
     logout_user()
     return redirect(url_for('index'))
-
-
-
-
-@app.route('/meter/<int:meter_id>/day_usage/', methods=["GET", "POST"])
-def usage_day(meter_id):
-    """ Get daily usage stats """
-    # Get user details
-    user_id, user_name = get_user_details()
-
-    visible, editable = check_meter_permissions(user_id, meter_id)
-    if not visible:
-        return 'Not authorised to view this page', 403
-
-    # Get meter details
-    first_record, last_record, num_days = get_meter_stats(meter_id)
-    if num_days == 0:
-        flash('You need to upload some data before you can chart usage.',
-              category='warning')
-        return redirect(url_for('manage_import', id=meter_id))
-
-    # Specify default day to report on
-    try:
-        report_date = request.values['report_date']
-    except KeyError:
-        report_date = '{}-{}-{}'.format(str(last_record.year).zfill(2),
-                                        str(last_record.month).zfill(2),
-                                        str(last_record.day).zfill(2))
-        return redirect(url_for('usage_day', meter_id=meter_id, report_date=report_date))
-
-    # Get end of reporting period
-    # And next and previous periods
-    rs = arrow.get(report_date)
-    re = rs.replace(days=+1)
-    period_desc = rs.format('ddd DD MMM YY')
-    period_nav = get_navigation_range('day', rs, first_record, last_record)
-    plot_settings = calculate_plot_settings(report_period='day')
-
-    readings = list(get_consumption_data(meter_id, rs.datetime, re.datetime))
-    usage_data = get_daily_usages(readings, 'Ergon', 'T14')
-    usage_data = usage_data[rs.date()]
-
-    return render_template('usage_day.html', meter_id=meter_id,
-                           meter_name=get_meter_name(meter_id),
-                           report_period='day', report_date=report_date,
-                           usage_data=usage_data,
-                           period_desc=period_desc,
-                           period_nav=period_nav,
-                           plot_settings=plot_settings,
-                           start_date=rs.format('YYYY-MM-DD'),
-                           end_date=re.format('YYYY-MM-DD')
-                           )
 
 
 @app.route('/meter/<int:meter_id>/month_usage/', methods=["GET", "POST"])
@@ -369,20 +308,40 @@ def monthly_bill_data(meter_id: int, report_date: str):
     num_days = (re - rs).days
     period_desc = rs.format('MMM YY')
 
-    readings = list(get_consumption_data(meter_id, rs.datetime, re.datetime))
-    usage_data = get_monthly_usages(readings, 'Ergon', 'T14')[
-        (rs.year, rs.month)]
-
-    t11 = electricity_charges_general('Ergon', usage_data.days, usage_data.all)
-    t12 = electricity_charges_tou('Ergon', usage_data.days,
-                                  usage_data.peak, 0, usage_data.offpeak)
+    daily_usages = get_daily_energy_readings(
+        meter_id, rs.datetime, re.replace(minutes=-60).datetime)
+    days = 0
+    load_total = 0
+    load_peak1 = 0
+    load_shoulder1 = 0
+    demands = []
+    for day in daily_usages:
+        days += 1
+        load_total += day.load_total
+        load_peak1 += day.load_peak1
+        load_shoulder1 += day.load_shoulder1
+        if day.load_peak1:
+            demands.append(day.load_peak1)
+        else:
+            demands.append(day.load_shoulder1)
+    load_offpeak1 = load_total - load_peak1 - load_shoulder1
+    top_4 = sorted(demands, reverse=True)[0:4]
+    demand = average_daily_peak_demand(mean(top_4))
+    fy = str(financial_year_starting(rs.datetime))
+    t11 = electricity_charges_general('ergon', days, load_total, fy)
+    t12 = electricity_charges_tou(
+        'ergon', days, load_peak1, 0, load_offpeak1, fy)
     if rs.month in [12, 1, 2]:
         peak_month = True
     else:
         peak_month = False
-    t14 = electricity_charges_tou_demand('Ergon', usage_data.days,
-                                        usage_data.all, usage_data.demand,
-                                        peak_month)
+    t14 = electricity_charges_tou_demand(
+        'ergon', days, load_total, demand, fy, peak_month)
+
+    usage_data = {'days': days, 'all': load_total, 'peak': load_peak1,
+                  'shoulder': load_shoulder1, 'offpeak': load_offpeak1,
+                  'demand': demand,
+                  }
 
     return {'month': period_desc, 'num_days': num_days, 'peak_month': peak_month,
             't11': t11, 't12': t12, 't14': t14, 'usage_data': usage_data}
@@ -449,24 +408,6 @@ def about():
     return render_template('about.html')
 
 
-@app.route('/energy_data/')
-@app.route('/energy_data/<meter_id>.json', methods=['POST', 'GET'])
-def energy_data(meter_id=None):
-    user_id, user_name = get_user_details()
-    visible, editable = check_meter_permissions(user_id, meter_id)
-    if not visible:
-        return 'Not authorised to view this page', 403
-    if meter_id is None:
-        return 'json chart api'
-    else:
-        params = request.args.to_dict()
-        start_date = arrow.get(params['start_date']).replace(
-            minutes=+10).datetime
-        end_date = arrow.get(params['end_date']).datetime
-        flotData = get_energy_chart_data(meter_id, start_date, end_date)
-        return jsonify(flotData)
-
-
 @app.route('/daily_data/')
 @app.route('/daily_data/<meter_id>.json', methods=['POST', 'GET'])
 def daily_data(meter_id=None):
@@ -478,9 +419,8 @@ def daily_data(meter_id=None):
         return 'json chart api'
     else:
         params = request.args.to_dict()
-        start_date = arrow.get(params['start_date']).replace(
-            minutes=+10).datetime
-        end_date = arrow.get(params['end_date']).datetime
+        start_date = arrow.get(params['start_date']).datetime
+        end_date = arrow.get(params['end_date']).replace(days=-1).datetime
         flotData = get_daily_chart_data(meter_id, start_date, end_date)
         return jsonify(flotData)
 
