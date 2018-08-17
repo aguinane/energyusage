@@ -9,6 +9,7 @@ from sqlalchemy.orm import sessionmaker
 from . import get_db_engine
 from . import save_energy_reading
 from . import refresh_daily_stats
+from . import refresh_monthly_stats
 
 
 def load_nem_data(meter_id, nmi, nem_file):
@@ -29,3 +30,5 @@ def load_nem_data(meter_id, nmi, nem_file):
                                 read.read_value, read.quality_method)
     session.commit()
     refresh_daily_stats(meter_id)
+    refresh_monthly_stats(meter_id)
+    

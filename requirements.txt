@@ -10,4 +10,5 @@ nemreader>=0.2
 requests>=2.18
 simplejson
 energy-shaper>=0.1
+python-dateutil
 https://github.com/aguinane/qld-tariffs/archive/master.zip#egg=qldtariffs>=0.2

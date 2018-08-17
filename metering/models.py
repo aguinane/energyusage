@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from typing import Tuple
 from sqlalchemy import create_engine
 from sqlalchemy import func
-from sqlalchemy import Column, String, DateTime, Float
+from sqlalchemy import Column, String, DateTime, Float, Integer
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from energy_shaper import group_into_profiled_intervals
@@ -121,7 +121,6 @@ def get_daily_energy_readings(meter_id, read_start: datetime, read_end: datetime
     return res
 
 
-
 def update_daily_total(session, day,
                        load_total, control_total, export_total,
                        load_peak1, load_shoulder1,
@@ -141,6 +140,68 @@ def update_daily_total(session, day,
         r.load_total = load_total
         r.control_total = control_total
         r.export_total = export_total
+        r.load_peak1 = load_peak1
+        r.load_shoulder1 = load_shoulder1
+        r.load_peak2 = load_peak2
+        r.load_shoulder2 = load_shoulder2
+
+
+class Monthlies(Base):
+    __tablename__ = 'monthly_totals'
+
+    year = Column(Integer, primary_key=True)
+    month = Column(Integer, primary_key=True)
+    num_days = Column(Integer)
+    # Channel Totals
+    load_total = Column(Float)
+    control_total = Column(Float)
+    export_total = Column(Float)
+    # Regional Peak Times
+    demand = Column(Float)
+    load_peak1 = Column(Float)
+    load_shoulder1 = Column(Float)
+    # SEQ Peak Times
+    load_peak2 = Column(Float)
+    load_shoulder2 = Column(Float)
+
+
+def get_monthly_energy_readings(meter_id, year: int, month: int):
+    """ Get energy readings """
+
+    engine = get_db_engine(meter_id)
+    Session = sessionmaker(bind=engine)
+    session = Session()
+
+    # Filter existing records
+    res = session.query(Monthlies).filter(
+        Monthlies.year == year,
+        Monthlies.month <= month,
+    ).all()
+    return res
+
+
+def update_monthly_total(session, year, month, num_days,
+                         load_total, control_total, export_total,
+                         demand, load_peak1, load_shoulder1,
+                         load_peak2, load_shoulder2
+                         ):
+    """ Save reading to database """
+
+    # Check existing records
+    r = session.query(Monthlies).filter(Monthlies.year == year, 
+                                        Monthlies.month == month).first()
+    if r is None:
+        monthly = Monthlies(year=year, month=month, num_days=num_days, 
+                        load_total=load_total, control_total=control_total, 
+                        export_total=export_total, demand=demand,
+                        load_peak1=load_peak1, load_shoulder1=load_shoulder1,
+                        load_peak2=load_peak2, load_shoulder2=load_shoulder2)
+        session.add(monthly)
+    else:
+        r.load_total = load_total
+        r.control_total = control_total
+        r.export_total = export_total
+        r.demand = demand
         r.load_peak1 = load_peak1
         r.load_shoulder1 = load_shoulder1
         r.load_peak2 = load_peak2
