@@ -175,8 +175,8 @@ def get_monthly_energy_readings(meter_id, year: int, month: int):
     # Filter existing records
     res = session.query(Monthlies).filter(
         Monthlies.year == year,
-        Monthlies.month <= month,
-    ).all()
+        Monthlies.month == month,
+    ).first()
     return res
 
 

@@ -4,6 +4,7 @@
     Define the energy site API
 """
 
+from datetime import datetime
 from flask import Blueprint, jsonify, request
 from metering import get_data_range
 from . import db
@@ -29,6 +30,5 @@ def data_range():
     return jsonify({'first_record': first_record,
                     'last_record': last_record
                     })
-
 
 

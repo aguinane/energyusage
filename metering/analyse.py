@@ -4,6 +4,7 @@
     Define the meter data models
 """
 
+import logging
 from datetime import datetime, timedelta
 from typing import List, Tuple
 from statistics import mean

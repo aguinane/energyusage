@@ -16,7 +16,7 @@
     </li>
     <li class="nav-item">
         <a class="btn btn-secondary nav-link"
-        href="{{ url_for('billing', meter_id=meter_id) }}" role="button">All</a>
+        href="{{ url_for('usage_all', meter_id=meter_id) }}" role="button">All</a>
     </li>
 
     <li class="nav-item float-xs-right">
@@ -46,7 +46,7 @@
       <div class="chart-container">
         <div id="daily_energy" class="chart-placeholder" style="max-width: 100%; height: 150px;"></div>
       </div>
-      <figcaption class="figure-caption">Average daily usage is {{ (usage_data.all / usage_data.days)|round(1) }} kW/day.</figcaption>
+      <figcaption class="figure-caption">Average daily usage is {{ (mth.load_total / mth.num_days)|round(1) }} kW/day.</figcaption>
   </div><!-- /card-block-->
   <div class="card-block">
       <div class="chart-container">
@@ -62,58 +62,117 @@
     <table class="table table-striped">
     <thead>
     <tr>
+            <th></th>
+            <th></th>
+            <th colspan="3">Ergon Energy</th>
+            <th colspan="2">AGL</th>
+            <th colspan="3">Origin</th>
+    </tr>        
+    <tr>
         <th>Component</th>
         <th>Usage</th>
-        <th>General Supply</th>
-        <th>Time of Use</th>
-        <th>Time of Use (Demand)</th>
+        <th>T11</th>
+        <th>T12</th>
+        <th>T14</th>
+        <th>T11</th>
+        <th>T12</th>
+        <th>T11</th>
+        <th>T12</th>               
     </tr>
     </thead>
     <tbody>
     <tr>
         <td>Service Fee</td>
-        <td>{{ usage_data.days }} days</td>
-        <td>${{ (t11.supply_charge.cost_incl_gst/100)|round(2) }}</td>
-        <td>${{ (t12.supply_charge.cost_incl_gst/100)|round(2) }}</td>
-        <td>${{ (t14.supply_charge.cost_incl_gst/100)|round(2) }}</td>
+        <td>{{ mth.num_days }} days</td>
+        <td>${{ (mth.ergon_t11.supply_charge.cost_incl_gst/100)|round(2) }}</td>
+        <td>${{ (mth.ergon_t12.supply_charge.cost_incl_gst/100)|round(2) }}</td>
+        <td>${{ (mth.ergon_t14.supply_charge.cost_incl_gst/100)|round(2) }}</td>
+        <td>${{ (mth.agl_t11.supply_charge.cost_incl_gst/100)|round(2) }}</td>
+        <td>${{ (mth.agl_t12.supply_charge.cost_incl_gst/100)|round(2) }}</td>
+        <td>${{ (mth.origin_t11.supply_charge.cost_incl_gst/100)|round(2) }}</td>
+        <td>${{ (mth.origin_t12.supply_charge.cost_incl_gst/100)|round(2) }}</td>                
     </tr>
     <tr>
         <td>Demand Charge</td>
 
-        <td>{{ (usage_data.demand)|round(3) }} kW
+        <td>{{ (mth.demand)|round(3) }} kW
             {% if not peak_month %}<br /><small>min 3 kW</small>{% endif %}</td>
         <td>-</td>
         <td>-</td>
-        <td>${{ (t14.demand.cost_incl_gst/100)|round(2) }}</td>
+        <td>${{ (mth.ergon_t14.demand.cost_incl_gst/100)|round(2) }}</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>                
     </tr>
     <tr>
         <td>All Consumption</td>
-        <td>{{ (usage_data.all)|round(2) }} kWh</td>
-        <td>${{ (t11.all_usage.cost_incl_gst/100)|round(2) }}</td>
+        <td>{{ (mth.load_total)|round(2) }} kWh</td>
+        <td>${{ (mth.ergon_t11.all_usage.cost_incl_gst/100)|round(2) }}</td>
         <td>-</td>
-        <td>${{ (t14.all_usage.cost_incl_gst/100)|round(2) }}</td>
+        <td>${{ (mth.ergon_t14.all_usage.cost_incl_gst/100)|round(2) }}</td>
+        <td>${{ (mth.agl_t11.all_usage.cost_incl_gst/100)|round(2) }}</td>
+        <td>-</td>
+        <td>${{ (mth.origin_t11.all_usage.cost_incl_gst/100)|round(2) }}</td>
+        <td>-</td>                
     </tr>
     <tr>
         <td>Peak Consumption</td>
-        <td>{{ (usage_data.peak)|round(2) }} kWh</td>
+        <td>{{ (mth.load_peak1)|round(2) }} kWh <br /><small>SEQ: {{ (mth.load_peak2)|round(2) }}</small></td>
         <td>-</td>
-        <td>${{ (t12.peak.cost_incl_gst/100)|round(2) }}</td>
+        <td>${{ (mth.ergon_t12.peak.cost_incl_gst/100)|round(2) }}</td>
         <td>-</td>
+        <td>-</td>
+        <td>${{ (mth.agl_t12.peak.cost_incl_gst/100)|round(2) }}</td>
+        <td>-</td>
+        <td>${{ (mth.origin_t12.peak.cost_incl_gst/100)|round(2) }}</td>                
     </tr>
     <tr>
+        <td>Shoulder Consumption <small>SEQ Only</small></td>
+        <td>{{ (mth.load_shoulder2)|round(2) }} kWh</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>${{ (mth.agl_t12.shoulder.cost_incl_gst/100)|round(2) }}</td>
+        <td>-</td>
+        <td>${{ (mth.origin_t12.shoulder.cost_incl_gst/100)|round(2) }}</td>          
+    </tr>
+
+    <tr>
         <td>Off-Peak Consumption</td>
-        <td>{{ (usage_data.offpeak)|round(2) }} kWh</td>
+        <td>{{ (mth.load_offpeak1)|round(2) }} kWh <br /><small>SEQ: {{ (mth.load_offpeak2)|round(2) }}</small></td>
         <td>-</td>
-        <td>${{ (t12.offpeak.cost_incl_gst/100)|round(2) }}</td>
+        <td>${{ (mth.ergon_t12.offpeak.cost_incl_gst/100)|round(2) }}</td>
         <td>-</td>
+        <td>-</td>
+        <td>${{ (mth.agl_t12.offpeak.cost_incl_gst/100)|round(2) }}</td>
+        <td>-</td>
+        <td>${{ (mth.origin_t12.offpeak.cost_incl_gst/100)|round(2) }}</td>          
     </tr>
     <tr>
         <td>Total</td>
         <td></td>
-        <td>${{ (t11.total_charges.cost_incl_gst/100)|round(2) }}</td>
-        <td>${{ (t12.total_charges.cost_incl_gst/100)|round(2) }}</td>
-        <td>${{ (t14.total_charges.cost_incl_gst/100)|round(2) }}</td>
+        <td>${{ (mth.ergon_t11.total_charges.cost_incl_gst/100)|round(2) }}</td>
+        <td>${{ (mth.ergon_t12.total_charges.cost_incl_gst/100)|round(2) }}</td>
+        <td>${{ (mth.ergon_t14.total_charges.cost_incl_gst/100)|round(2) }}</td>
+        <td>${{ (mth.agl_t11.total_charges.cost_incl_gst/100)|round(2) }}</td>
+        <td>${{ (mth.agl_t12.total_charges.cost_incl_gst/100)|round(2) }}</td>
+        <td>${{ (mth.origin_t11.total_charges.cost_incl_gst/100)|round(2) }}</td>
+        <td>${{ (mth.origin_t12.total_charges.cost_incl_gst/100)|round(2) }}</td>        
     </tr>
+    <tr>
+        <td>Savings <small>to Ergon T11</small></td>
+        <td></td>
+        <td> - </td>
+        <td>${{ (mth.ergon_t11.total_charges.cost_incl_gst/100-mth.ergon_t12.total_charges.cost_incl_gst/100)|round(2) }}</td>
+        <td>${{ (mth.ergon_t11.total_charges.cost_incl_gst/100-mth.ergon_t14.total_charges.cost_incl_gst/100)|round(2) }}</td>
+        <td>${{ (mth.ergon_t11.total_charges.cost_incl_gst/100-mth.agl_t11.total_charges.cost_incl_gst/100)|round(2) }}</td>
+        <td>${{ (mth.ergon_t11.total_charges.cost_incl_gst/100-mth.agl_t12.total_charges.cost_incl_gst/100)|round(2) }}</td>
+        <td>${{ (mth.ergon_t11.total_charges.cost_incl_gst/100-mth.origin_t11.total_charges.cost_incl_gst/100)|round(2) }}</td>
+        <td>${{ (mth.ergon_t11.total_charges.cost_incl_gst/100-mth.origin_t12.total_charges.cost_incl_gst/100)|round(2) }}</td>                  
+    </tr>
+
     </tbody>
     </table>
 </div><!-- /card-->

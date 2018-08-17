@@ -13,16 +13,16 @@ from qldtariffs import get_daily_charges, get_monthly_charges
 from qldtariffs import electricity_charges_general
 from qldtariffs import electricity_charges_tou
 from qldtariffs import electricity_charges_tou_demand
-from qldtariffs import financial_year_starting
 from metering import load_nem_data
-from metering import get_data_range
+from metering import get_data_range, get_month_ranges
 from metering import get_daily_energy_readings
 from . import app, db
 from .models import User, Meter, delete_meter_data
 from .models import get_meter_name
 from .models import get_user_meters, get_public_meters, visible_meters
 from .forms import UsernamePasswordForm, FileForm, NewMeter, MeterDetails
-from .charts import get_daily_chart_data
+from .charts import get_daily_chart_data, get_monthly_chart_data
+from .charts import monthly_bill_data
 from .usage import average_daily_peak_demand
 
 
@@ -261,27 +261,22 @@ def usage_month(meter_id):
     period_nav = get_navigation_range('month', rs, first_record, last_record)
 
     plot_settings = calculate_plot_settings(report_period='month')
-    month_bill = monthly_bill_data(meter_id, report_date)
+    mth = monthly_bill_data(meter_id, rs.year, rs.month)
     return render_template('usage_month.html', meter_id=meter_id,
                            meter_name=get_meter_name(meter_id),
                            report_period='month', report_date=report_date,
-                           usage_data=month_bill['usage_data'],
-                           peak_month=month_bill['peak_month'],
                            period_desc=period_desc,
-                           t11=month_bill['t11'],
-                           t12=month_bill['t12'],
-                           t14=month_bill['t14'],
-                           num_days=month_bill['num_days'],
                            period_nav=period_nav,
                            plot_settings=plot_settings,
                            start_date=rs.format('YYYY-MM-DD'),
-                           end_date=re.format('YYYY-MM-DD')
+                           end_date=re.format('YYYY-MM-DD'),
+                           mth=mth
                            )
 
 
-@app.route('/meter/<int:meter_id>/monthly_bill.json', methods=["GET", "POST"])
+@app.route('/meter/<int:meter_id>/<int:year>/<int:month>/monthly.json')
 @login_required
-def monthly_bill(meter_id: int):
+def monthly_bill(meter_id: int, year: int, month: int):
     # Get user details
     user_id, user_name = get_user_details()
     visible, editable = check_meter_permissions(user_id, meter_id)
@@ -289,66 +284,13 @@ def monthly_bill(meter_id: int):
         return 'Not authorised to view this page', 403
 
     """ Return the monthly bill costs as json """
-    report_date = request.values['report_date']
-    month_bill = monthly_bill_data(meter_id, report_date)
+    month_bill = monthly_bill_data(meter_id, year, month)
     return jsonify(month_bill)
 
 
-def monthly_bill_data(meter_id: int, report_date: str):
-    # Get end of reporting period
-    # And next and previous periods
-    rs = arrow.get(report_date)
-    rs = arrow.get(rs.year, rs.month, 1)  # Make sure start of month
-    re = rs.replace(months=+1)
-    first_record, last_record, num_days = get_meter_stats(meter_id)
-    if rs < first_record:
-        rs = first_record
-    if re > last_record:
-        re = last_record
-    num_days = (re - rs).days
-    period_desc = rs.format('MMM YY')
 
-    daily_usages = get_daily_energy_readings(
-        meter_id, rs.datetime, re.replace(minutes=-60).datetime)
-    days = 0
-    load_total = 0
-    load_peak1 = 0
-    load_shoulder1 = 0
-    demands = []
-    for day in daily_usages:
-        days += 1
-        load_total += day.load_total
-        load_peak1 += day.load_peak1
-        load_shoulder1 += day.load_shoulder1
-        if day.load_peak1:
-            demands.append(day.load_peak1)
-        else:
-            demands.append(day.load_shoulder1)
-    load_offpeak1 = load_total - load_peak1 - load_shoulder1
-    top_4 = sorted(demands, reverse=True)[0:4]
-    demand = average_daily_peak_demand(mean(top_4))
-    fy = str(financial_year_starting(rs.datetime))
-    t11 = electricity_charges_general('ergon', days, load_total, fy)
-    t12 = electricity_charges_tou(
-        'ergon', days, load_peak1, 0, load_offpeak1, fy)
-    if rs.month in [12, 1, 2]:
-        peak_month = True
-    else:
-        peak_month = False
-    t14 = electricity_charges_tou_demand(
-        'ergon', days, load_total, demand, fy, peak_month)
-
-    usage_data = {'days': days, 'all': load_total, 'peak': load_peak1,
-                  'shoulder': load_shoulder1, 'offpeak': load_offpeak1,
-                  'demand': demand,
-                  }
-
-    return {'month': period_desc, 'num_days': num_days, 'peak_month': peak_month,
-            't11': t11, 't12': t12, 't14': t14, 'usage_data': usage_data}
-
-
-@app.route('/meter/<int:meter_id>/billing/', methods=["GET", "POST"])
-def billing(meter_id: int):
+@app.route('/meter/<int:meter_id>/all_usage/', methods=["GET", "POST"])
+def usage_all(meter_id: int):
     """ Show billing for all months """
     # Get user details
     user_id, user_name = get_user_details()
@@ -367,16 +309,18 @@ def billing(meter_id: int):
     re = arrow.get(last_record)
     num_days = (re - rs).days
 
-    plot_settings = calculate_plot_settings(report_period='month')
+    plot_settings = calculate_plot_settings(report_period='all')
 
-    billing_months = list(get_billing_months(first_record, last_record))
+    start, end = get_data_range(meter_id)
+    billing_months =  get_month_ranges(start, end)
 
-    return render_template('billing.html', meter_id=meter_id,
+
+    return render_template('usage_all.html', meter_id=meter_id,
                            meter_name=get_meter_name(meter_id),
                            plot_settings=plot_settings,
-                           billing_months=billing_months,
                            start_date=rs.format('YYYY-MM-DD'),
-                           end_date=re.format('YYYY-MM-DD')
+                           end_date=re.format('YYYY-MM-DD'),
+                           billing_months=billing_months
                            )
 
 
@@ -408,21 +352,32 @@ def about():
     return render_template('about.html')
 
 
-@app.route('/daily_data/')
 @app.route('/daily_data/<meter_id>.json', methods=['POST', 'GET'])
-def daily_data(meter_id=None):
+def daily_data(meter_id):
     user_id, user_name = get_user_details()
     visible, editable = check_meter_permissions(user_id, meter_id)
     if not visible:
         return 'Not authorised to view this page', 403
-    if meter_id is None:
-        return 'json chart api'
-    else:
-        params = request.args.to_dict()
-        start_date = arrow.get(params['start_date']).datetime
-        end_date = arrow.get(params['end_date']).replace(days=-1).datetime
-        flotData = get_daily_chart_data(meter_id, start_date, end_date)
-        return jsonify(flotData)
+
+    params = request.args.to_dict()
+    start_date = arrow.get(params['start_date']).datetime
+    end_date = arrow.get(params['end_date']).replace(days=-1).datetime
+    flotData = get_daily_chart_data(meter_id, start_date, end_date)
+    return jsonify(flotData)
+
+
+@app.route('/monthly_data/<meter_id>.json', methods=['POST', 'GET'])
+def monthly_data(meter_id):
+    user_id, user_name = get_user_details()
+    visible, editable = check_meter_permissions(user_id, meter_id)
+    if not visible:
+        return 'Not authorised to view this page', 403
+
+    params = request.args.to_dict()
+    start_date = arrow.get(params['start_date']).datetime
+    end_date = arrow.get(params['end_date']).replace(days=-1).datetime
+    flotData = get_monthly_chart_data(meter_id, start_date, end_date)
+    return jsonify(flotData)
 
 
 def get_meter_stats(meter_id):
@@ -474,7 +429,9 @@ def calculate_plot_settings(report_period='day', interval=10):
     # Specify chart settings depending on report period
     plot_settings = dict()
     plot_settings['barWidth'] = 1000 * 60 * interval
-    if report_period == 'month':
+    if report_period == 'all':
+        plot_settings['minTickSize'] = 'month'    
+    elif report_period == 'month':
         plot_settings['minTickSize'] = 'day'
     else:  # Day
         plot_settings['minTickSize'] = 'hour'
