@@ -81,7 +81,14 @@ def refresh_monthly_stats(meter_id):
             load_shoulder2 += day.load_shoulder2
 
         top_4 = sorted(demands, reverse=True)[0:4]
-        demand = average_daily_peak_demand(mean(top_4))
+        top_4_avg = mean(top_4)
+        demand = average_daily_peak_demand(top_4_avg)
+
+        unique = set(demands) 
+        if len(unique) < 5:
+            # Demand not variable enough, multiple demand by 2 to compensate
+            # Readings are probably not interval readings
+            demand = demand * 2
 
         update_monthly_total(session, year, month, num_days,
                              load_total, control_total, export_total,
