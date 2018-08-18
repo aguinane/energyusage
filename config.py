@@ -1,6 +1,6 @@
 SECRET_KEY = 'PASSWORD'
-DATABASE = 'energy/data/app.db'
-UPLOAD_FOLDER = 'energy/data'
+DATABASE = 'data/app.db'
+UPLOAD_FOLDER = 'data/uploads'
 SQLALCHEMY_DATABASE_URI = 'sqlite:///data/app.db'
 SQLALCHEMY_TRACK_MODIFICATIONS = False
 SQLALCHEMY_ECHO = False

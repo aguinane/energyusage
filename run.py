@@ -5,14 +5,20 @@ import yaml
 from energy import app
 from energy.views import *
 
-if __name__ == '__main__':
 
-    if not os.path.exists('logs'):
-        os.makedirs('logs')
-
+def setup_files():
+    """ Set up files and folders on first run """
     if not os.path.exists('logs'):
         logging.info('Creating logs folder')
         os.makedirs('logs')
+
+    if not os.path.exists('data'):
+        logging.info('Creating data directory')
+        os.makedirs('data')
+
+    if not os.path.exists('data/uploads'):
+        logging.info('Creating uploads directory')
+        os.makedirs('data/uploads')
 
     if not os.path.exists(app.config['UPLOAD_FOLDER']):
         logging.info('Creating upload folder')
@@ -23,6 +29,10 @@ if __name__ == '__main__':
         from energy import db
         db.create_all()
 
+
+if __name__ == '__main__':
+
+    setup_files()
     with open('logging.yaml', 'rt') as f:
         config = yaml.safe_load(f.read())
     logging.config.dictConfig(config)
