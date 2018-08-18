@@ -99,7 +99,7 @@ def get_monthly_chart_data(meter_id, start_date, end_date):
 
     start, end = get_data_range(meter_id)
     
-    for year, month in get_month_ranges(start, end):
+    for year, month, _ in get_month_ranges(start, end):
 
         mth = get_monthly_energy_readings(meter_id, year, month)
         dTime = arrow.get(datetime(year, month, 1))

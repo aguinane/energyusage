@@ -314,14 +314,14 @@ def usage_all(meter_id: int):
 
     start, end = get_data_range(meter_id)
     billing_months =  get_month_ranges(start, end)
-
+    fys = sorted(set([mth[2] for mth in billing_months]), reverse=True)
 
     return render_template('usage_all.html', meter_id=meter_id,
                            meter_name=get_meter_name(meter_id),
                            plot_settings=plot_settings,
                            start_date=rs.format('YYYY-MM-DD'),
                            end_date=re.format('YYYY-MM-DD'),
-                           billing_months=billing_months
+                           billing_months=billing_months, fys=fys
                            )
 
 

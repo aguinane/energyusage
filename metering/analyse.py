@@ -10,6 +10,7 @@ from typing import List, Tuple
 from statistics import mean
 from dateutil.relativedelta import relativedelta
 from qldtariffs import get_daily_usages
+from qldtariffs import financial_year_starting
 from sqlalchemy.orm import sessionmaker
 from . import get_db_engine
 from . import get_data_range
@@ -49,7 +50,7 @@ def refresh_monthly_stats(meter_id):
     session = Session()
 
     start, end = get_data_range(meter_id)
-    for year, month in get_month_ranges(start, end):
+    for year, month, _ in get_month_ranges(start, end):
         month_start = datetime(year, month, 1)
         month_end = month_start + relativedelta(months=1) - timedelta(days=1)
         num_days = month_end.day
@@ -110,7 +111,8 @@ def get_month_ranges(start: datetime, end: datetime) -> List[Tuple[int, int]]:
     periods: list = []
     day = start
     while day <= end:
-        period = (day.year, day.month)
+        fy = financial_year_starting(day)
+        period = (day.year, day.month, fy)
         if period not in periods:
             periods.append(period)
         day += timedelta(days=1)

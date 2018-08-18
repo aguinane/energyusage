@@ -4,71 +4,86 @@
 {% block container %}
 <h1 class="page-header">Energy Usage <small>{{meter_name}}</small></h1>
 
-
 <div class="card">
-    <div class="card-block">
+        <div class="card-body">
+<ul class="nav nav-pills">
+<li class="nav-item">
+    <a class="nav-link active"
+    href="{{ url_for('usage_all', meter_id=meter_id) }}" role="button">All</a>
+</li>          
+<li class="nav-item">
+    <a class="nav-link"
+    href="{{ url_for('usage_month', meter_id=meter_id) }}" role="button">Month</a>
+</li>
+<li class="nav-item">
+<a class="nav-link" href="{{ url_for('usage_day', meter_id=meter_id) }}" role="button">Day</a>
+</li>      
+</ul>
+</div><!-- /card-body-->
+</div><!-- /card-->
 
-      <ul class="nav nav-pills">
-        <li class="nav-item">
-            <a class="btn btn-secondary nav-link active"
-            href="{{ url_for('usage_all', meter_id=meter_id) }}" role="button">All</a>
-        </li>          
-      <li class="nav-item">
-          <a class="btn btn-secondary nav-link"
-          href="{{ url_for('usage_month', meter_id=meter_id) }}" role="button">Month</a>
-      </li>
-      <li class="nav-item">
-            <a class="btn btn-secondary nav-link" href="{{ url_for('usage_day', meter_id=meter_id) }}" role="button">Day</a>
-      </li>      
-
-    </ul><!-- /nav-pills-->
-
-    </div><!-- /card-block-->
-  <div class="card-block">
+<div class="card-deck">
+    <div class="card">
+            <div class="card-body">
       <div class="chart-container">
         <img id="chart-loading" src="{{ url_for('static', filename='img/loading_icon.gif') }}" style="position: absolute; visibility:visible"/>
         <div id="monthly_energy" class="chart-placeholder" style="max-width: 100%; height: 150px;"></div>
       </div>
-  </div><!-- /card-block-->
-
-</div><!-- /card-->
-
-
-
-<div class="card card-block">
-
-        <h3>Tariff Comparison</h3>
-
-        <table id="all_bills" class="table table-striped">
-
-        <thead>
-            <tr>
-                    <th colspan="2"></th>
-                    <th colspan="3">Ergon Energy</th>
-                    <th colspan="2">AGL</th>
-                    <th colspan="3">Origin</th>
-            </tr>        
-            <tr>
-                <th>Year</th>
-                <th>Month</th>
-                <th>T11</th>
-                <th>T12</th>
-                <th>T14</th>
-                <th>T11</th>
-                <th>T12</th>
-                <th>T11</th>
-                <th>T12</th> 
-            </tr>
-
-        </thead>
-
-        </table>
-
+    </div>
     </div><!-- /card-->
 
 
 
-{% for year, month in billing_months %}
+</div><!-- /card-deck-->
+
+<div class="card-deck">
+
+<div class="card">
+        <div class="card-body">
+        <h3>Tariff Comparison</h3>
+       
+<ul class="nav nav-tabs" id="myTab" role="tablist">        
+{% for fy in fys %}     
+    <li class="nav-item">
+        <a class="nav-link{% if loop.index == 1 %} active{% endif %}" id="bills-{{fy}}-tab" data-toggle="tab" href="#bills-{{fy}}" role="tab">{{fy}}/{{fy+1}}</a>
+    </li>
+{% endfor %}
+</ul>
+<div class="tab-content" id="myTabContent">
+            
+{% for fy in fys %}   
+<div class="tab-pane fade{% if loop.index == 1 %} show active{% endif %}   " id="bills-{{fy}}" role="tabpanel">
+    <table id="all_bills_{{fy}}" class="table table-striped">
+    <thead>
+        <tr>
+            <th colspan="2"></th>
+            <th colspan="3">Ergon Energy</th>
+            <th colspan="2">AGL</th>
+            <th colspan="3">Origin</th>
+        </tr>        
+        <tr>
+            <th>Year</th>
+            <th>Month</th>
+            <th>T11</th>
+            <th>T12</th>
+            <th>T14</th>
+            <th>T11</th>
+            <th>T12</th>
+            <th>T11</th>
+            <th>T12</th> 
+        </tr>
+    </thead>
+    </table>
+</div>    
+{% endfor %}
+</div>
+
+</div><!-- /card-body-->
+</div><!-- /card-->
+</div><!-- /card-deck-->
+
+
+{% for year, month, fy in billing_months %}
 
 <script>
 
@@ -102,7 +117,7 @@
         row_data = row_data + '</tr>'
 
 
-        var tableRef = document.getElementById('all_bills');
+        var tableRef = document.getElementById('all_bills_{{fy}}');
 
         $(tableRef).append(row_data);
 
