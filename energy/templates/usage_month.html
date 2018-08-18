@@ -1,6 +1,6 @@
 {% extends "layout.html" %}
 {% set active_page = active_page|default('meters') -%}
-{% block title %}Energy Usage{% endblock %}
+{% block title %}Energy Usage - {{meter_name}} - {{ period_desc }}{% endblock %}
 {% block container %}
 <h1 class="page-header">Energy Usage <small>{{meter_name}}</small></h1>
 
@@ -16,6 +16,9 @@
     <li class="nav-item">
         <a class="btn btn-secondary nav-link active"
         href="{{ url_for('usage_month', meter_id=meter_id, report_date=report_date) }}" role="button">Month</a>
+    </li>
+    <li class="nav-item">
+        <a class="btn btn-secondary nav-link" href="{{ url_for('usage_day', meter_id=meter_id, report_date=report_date) }}" role="button">Day</a>
     </li>
 
     <li class="nav-item float-xs-right">

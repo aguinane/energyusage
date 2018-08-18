@@ -22,6 +22,7 @@ from .models import get_meter_name
 from .models import get_user_meters, get_public_meters, visible_meters
 from .forms import UsernamePasswordForm, FileForm, NewMeter, MeterDetails
 from .charts import get_daily_chart_data, get_monthly_chart_data
+from .charts import get_interval_chart_data
 from .charts import monthly_bill_data
 from .usage import average_daily_peak_demand
 
@@ -345,6 +346,69 @@ def get_billing_months(start_date, end_date):
             month_start = arrow.get(month_start).format('YYYY-MM-DD')
             month_desc = arrow.get(month_start).format('MMM YY')
             yield month_start, month_desc
+
+
+@app.route('/meter/<int:meter_id>/day_usage/', methods=["GET", "POST"])
+def usage_day(meter_id):
+    """ Get daily usage stats """
+    # Get user details
+    user_id, user_name = get_user_details()
+
+    visible, editable = check_meter_permissions(user_id, meter_id)
+    if not visible:
+        return 'Not authorised to view this page', 403
+
+    # Get meter details
+    first_record, last_record, num_days = get_meter_stats(meter_id)
+    if num_days == 0:
+        flash('You need to upload some data before you can chart usage.',
+              category='warning')
+        return redirect(url_for('manage_import', id=meter_id))
+
+    # Specify default day to report on
+    try:
+        report_date = request.values['report_date']
+    except KeyError:
+        report_date = '{}-{}-{}'.format(str(last_record.year).zfill(2),
+                                        str(last_record.month).zfill(2),
+                                        str(last_record.day).zfill(2))
+        return redirect(url_for('usage_day', meter_id=meter_id, report_date=report_date))
+
+    # Get end of reporting period
+    # And next and previous periods
+    rs = arrow.get(report_date)
+    re = rs.replace(days=+1)
+    period_desc = rs.format('ddd DD MMM YY')
+    period_nav = get_navigation_range('day', rs, first_record, last_record)
+    plot_settings = calculate_plot_settings(report_period='day', interval=30)
+
+    return render_template('usage_day.html', meter_id=meter_id,
+                           meter_name=get_meter_name(meter_id),
+                           report_period='day', report_date=report_date,
+                           period_desc=period_desc,
+                           period_nav=period_nav,
+                           plot_settings=plot_settings,
+                           start_date=rs.format('YYYY-MM-DD'),
+                           end_date=re.format('YYYY-MM-DD')
+                           )
+
+
+@app.route('/energy_data/')
+@app.route('/energy_data/<meter_id>.json', methods=['POST', 'GET'])
+def energy_data(meter_id=None):
+    user_id, user_name = get_user_details()
+    visible, editable = check_meter_permissions(user_id, meter_id)
+    if not visible:
+        return 'Not authorised to view this page', 403
+    if meter_id is None:
+        return 'json chart api'
+    else:
+        params = request.args.to_dict()
+        start_date = arrow.get(params['start_date']).datetime
+        end_date = arrow.get(params['end_date']).datetime
+        flotData = get_interval_chart_data(meter_id, start_date, end_date)
+        return jsonify(flotData)
+
 
 
 @app.route('/about/')

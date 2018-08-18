@@ -1,8 +1,11 @@
 import arrow
 from datetime import datetime
+from metering import get_load_energy_readings
 from metering import get_daily_energy_readings
 from metering import get_monthly_energy_readings
 from metering import get_data_range, get_month_ranges
+from energy_shaper import split_into_profiled_intervals
+from energy_shaper import group_into_profiled_intervals
 from qldtariffs import financial_year_starting
 from qldtariffs import get_daily_charges, get_monthly_charges
 from qldtariffs import electricity_charges_general
@@ -106,5 +109,23 @@ def get_monthly_chart_data(meter_id, start_date, end_date):
 
         chartdata['consumption'].append([ts, usage_total])
         chartdata['consumption_peak'].append([ts, usage_peak])
+
+    return chartdata
+
+
+def get_interval_chart_data(meter_id, start_date, end_date):
+    """ Return json object for flot chart
+    """
+    chartdata = {}
+    chartdata['label'] = 'Energy Profile'
+    chartdata['consumption'] = []
+
+    reads = list(get_load_energy_readings(meter_id, start_date, end_date))
+    split_reads = group_into_profiled_intervals(reads, interval_m=30)
+    for r in split_reads:
+        dTime = arrow.get(r[0])
+        ts = int(dTime.timestamp * 1000)
+        impWh = r[2]
+        chartdata['consumption'].append([ts, impWh])
 
     return chartdata

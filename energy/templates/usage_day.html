@@ -1,6 +1,6 @@
 {% extends "layout.html" %}
 {% set active_page = active_page|default('meters') -%}
-{% block title %}Energy Usage{% endblock %}
+{% block title %}Energy Usage - {{meter_name}} - {{ period_desc }}{% endblock %}
 {% block container %}
 <h1 class="page-header">Energy Usage <small>{{meter_name}}</small></h1>
 
@@ -52,40 +52,6 @@
   </div><!-- /card-block-->
 
 </div><!-- /card-->
-
-
- <div class="row">
-    <div class="col-sm-5">
-    <div class="card card-block">
-    <h4>Consumption Stats</h4>
-    <dl class="row">
-        <dt class="col-sm-6">Peak</dt>
-        <dd class="col-sm-6">{{ (usage_data.peak)|round(2) }} kWh</dd>
-
-        <dt class="col-sm-6">Off-Peak</dt>
-        <dd class="col-sm-6">{{ (usage_data.offpeak)|round(2) }} kWh</dd>
-
-        <dt class="col-sm-6">Total</dt>
-        <dd class="col-sm-6">{{ (usage_data.all)|round(2) }} kWh</dd>
-    </dl>
-    </div><!-- /card-->
-    </div><!-- /col-->
-
-    <div class="col-sm-5">
-    <div class="card card-block">
-    <h4>Demand Stats</h4>
-    <dl class="row">
-        <dt class="col-sm-6">Average Peak Demand</dt>
-        <dd class="col-sm-6">{{ (usage_data.demand*(1/6.5))|round(2) }} kW</dd>
-    </dl>
-
-    </div><!-- /card-->
-    </div><!-- /col-->
-
-
-</div><!-- /row-->
-
-
 
 
 <!-- Flot code - load json into chart div-->
@@ -140,15 +106,7 @@ $(document).ready(function(){
                             },
                       label: "Consumption (kWh)"
                     },
-                    { data: json.power,
-                      lines: { show: true,
-                               align: 'center',
-                               steps: true
-                            },
-                      color: "#444444",
-                      label: "Average Power (kW)",
-                      yaxis: 2
-                    }
+
                 ],
                 // plot settings
                 {

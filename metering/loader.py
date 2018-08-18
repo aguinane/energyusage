@@ -6,6 +6,7 @@
 
 from nemreader import read_nem_file
 from sqlalchemy.orm import sessionmaker
+from energy_shaper import split_into_daily_intervals
 from . import get_db_engine
 from . import save_energy_reading
 from . import refresh_daily_stats
@@ -23,11 +24,16 @@ def load_nem_data(meter_id, nmi, nem_file):
     channels = m.readings[nmi]
 
     for ch_name in channels.keys():
-        for read in channels[ch_name]:
 
+        reads = split_into_daily_intervals(channels[ch_name])
+        for read in reads:
+            try:
+                quality_method = read[3]
+            except IndexError:
+                quality_method = None
             save_energy_reading(session, ch_name,
-                                read.t_start, read.t_end,
-                                read.read_value, read.quality_method)
+                                read[0], read[1],
+                                read[2], quality_method)
     session.commit()
     refresh_daily_stats(meter_id)
     refresh_monthly_stats(meter_id)

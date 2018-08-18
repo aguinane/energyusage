@@ -1,6 +1,6 @@
 {% extends "layout.html" %}
 {% set active_page = active_page|default('meters') -%}
-{% block title %}Energy Usage{% endblock %}
+{% block title %}Energy Usage - {{meter_name}}{% endblock %}
 {% block container %}
 <h1 class="page-header">Energy Usage <small>{{meter_name}}</small></h1>
 
@@ -17,6 +17,9 @@
           <a class="btn btn-secondary nav-link"
           href="{{ url_for('usage_month', meter_id=meter_id) }}" role="button">Month</a>
       </li>
+      <li class="nav-item">
+            <a class="btn btn-secondary nav-link" href="{{ url_for('usage_day', meter_id=meter_id) }}" role="button">Day</a>
+      </li>      
 
     </ul><!-- /nav-pills-->
 
@@ -54,7 +57,7 @@
                 <th>T11</th>
                 <th>T12</th>
                 <th>T11</th>
-                <th>T12</th>               
+                <th>T12</th> 
             </tr>
 
         </thead>
@@ -93,6 +96,9 @@
         row_data = row_data + '<td>' + price_t12 + '</td><td>' +  price_t14 + '</td>'
         row_data = row_data + '<td>' + agl_t11 + '</td><td>' +  agl_t12 + '</td>'
         row_data = row_data + '<td>' + origin_t11 + '</td><td>' +  origin_t12 + '</td>'
+        row_data = row_data + '<td><a href="/meter/{{meter_id}}/month_usage/?report_date=' + json.year + '-' + json.month + '">Month Data</a></td>'
+        
+
         row_data = row_data + '</tr>'
 
 
@@ -202,7 +208,7 @@ $(document).ready(function(){
     }
 
     var previousPoint = null;
-    $("#daily_energy").bind("plothover", function (event, pos, item) {
+    $("#monthly_energy").bind("plothover", function (event, pos, item) {
         $("#x").text(pos.x.toFixed(2));
         $("#y").text(pos.y.toFixed(2));
 
