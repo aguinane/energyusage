@@ -1,21 +1,23 @@
 import datetime
 import os
 from sqlalchemy import create_engine
-from sqlalchemy import MetaData, Table, Column, DateTime, Float, Integer, between, func
+from sqlalchemy import MetaData, Table, Column, DateTime, Float, Integer, ForeignKey
+from sqlalchemy import between, func
 from sqlalchemy.sql import select
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy import Column, String, DateTime, Float, Integer
 
 from . import bcrypt, db, app
 
 
 class Meter(db.Model):
-    """ A list of meters
-    """
-    meter_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.user_id'))
-    sharing = db.Column(db.String(7)) # Public / Private
-    api_key = db.Column(db.String(36))
-    meter_name = db.Column(db.String(20))
+    """ A list of meters """
+    __tablename__ = 'meter'
+    meter_id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('user.user_id'))
+    sharing = Column(String(7)) # Public / Private
+    api_key = Column(String(36))
+    meter_name = Column(String(20))
 
 
 def delete_meter_data(meter_id):
@@ -69,10 +71,11 @@ def visible_meters(user_id):
 class User(db.Model):
     """ A user account
     """
-    user_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    username = db.Column(db.String(64), unique=True)
-    _password = db.Column(db.String(128))
-    apikey = db.Column(db.String(64))
+    __tablename__ = 'user'
+    user_id = Column(Integer, primary_key=True, autoincrement=True)
+    username = Column(String(64), unique=True)
+    _password = Column(String(128))
+    apikey = Column(String(64))
 
     @hybrid_property
     def password(self):
