@@ -9,14 +9,15 @@
     <div class="card-block">
 
       <ul class="nav nav-pills">
+        <li class="nav-item">
+            <a class="btn btn-secondary nav-link active"
+            href="{{ url_for('usage_all', meter_id=meter_id) }}" role="button">All</a>
+        </li>          
       <li class="nav-item">
           <a class="btn btn-secondary nav-link"
           href="{{ url_for('usage_month', meter_id=meter_id) }}" role="button">Month</a>
       </li>
-      <li class="nav-item">
-          <a class="btn btn-secondary nav-link active"
-          href="{{ url_for('usage_all', meter_id=meter_id) }}" role="button">All</a>
-      </li>
+
     </ul><!-- /nav-pills-->
 
     </div><!-- /card-block-->

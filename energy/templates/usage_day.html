@@ -10,16 +10,17 @@
 
     <ul class="nav nav-pills">
     <li class="nav-item">
-        <a class="btn btn-secondary nav-link active"
-        href="{{ url_for('usage_day', meter_id=meter_id, report_date=report_date) }}" role="button">Day</a>
-    </li>
+        <a class="btn btn-secondary nav-link"
+        href="{{ url_for('usage_all', meter_id=meter_id) }}" role="button">All</a>
+    </li>        
+
     <li class="nav-item">
         <a class="btn btn-secondary nav-link"
         href="{{ url_for('usage_month', meter_id=meter_id, report_date=report_date) }}" role="button">Month</a>
     </li>
     <li class="nav-item">
-        <a class="btn btn-secondary nav-link"
-        href="{{ url_for('billing', meter_id=meter_id) }}" role="button">All</a>
+        <a class="btn btn-secondary nav-link active"
+        href="{{ url_for('usage_day', meter_id=meter_id, report_date=report_date) }}" role="button">Day</a>
     </li>
 
     <li class="nav-item float-xs-right">
