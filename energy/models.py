@@ -7,7 +7,9 @@ from sqlalchemy.sql import select
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy import Column, String, DateTime, Float, Integer
 
-from . import bcrypt, db, app
+from werkzeug.security import generate_password_hash, check_password_hash
+
+from . import db, app
 
 
 class Meter(db.Model):
@@ -67,26 +69,23 @@ def visible_meters(user_id):
         yield (meter.meter_id, meter.meter_name, user_name)
 
 
-
 class User(db.Model):
-    """ A user account
-    """
+    """ A user account """
     __tablename__ = 'user'
-    user_id = Column(Integer, primary_key=True, autoincrement=True)
-    username = Column(String(64), unique=True)
-    _password = Column(String(128))
-    apikey = Column(String(64))
+    user_id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(64), index=True, unique=True)
+    email = db.Column(db.String(120), index=True, unique=True)
+    password_hash = db.Column(db.String(128))
+    apikey = Column(String(128))
 
-    @hybrid_property
-    def password(self):
-        return self._password
+    def __repr__(self):
+        return '<User {}>'.format(self.username)
 
-    @password.setter
-    def _set_password(self, plaintext):
-        self._password = bcrypt.generate_password_hash(plaintext)
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
 
-    def is_correct_password(self, plaintext):
-        return bcrypt.check_password_hash(self._password, plaintext)
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
 
     def is_active(self):
         """True, as all users are active."""

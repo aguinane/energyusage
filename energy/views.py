@@ -189,8 +189,8 @@ def export_data():
 def signup():
     form = UsernamePasswordForm()
     if form.validate_on_submit():
-        user = User(username=form.username.data.lower(),
-                    password=form.password.data)
+        user = User(username=form.username.data.lower())
+        user.set_password(form.password.data)
         try:
             db.session.add(user)
             db.session.commit()
@@ -213,7 +213,7 @@ def signin():
             flash('No user called {} found!'.format(form.username.data.lower()),
                   category='danger')
             return redirect(url_for('signin'))
-        if user.is_correct_password(form.password.data):
+        if user.check_password(form.password.data):
             login_user(user)
             return redirect(request.args.get('next') or url_for('index'))
         else:
@@ -494,7 +494,7 @@ def calculate_plot_settings(report_period='day', interval=10):
     plot_settings = dict()
     plot_settings['barWidth'] = 1000 * 60 * interval
     if report_period == 'all':
-        plot_settings['minTickSize'] = 'month'    
+        plot_settings['minTickSize'] = 'month'
     elif report_period == 'month':
         plot_settings['minTickSize'] = 'day'
     else:  # Day
