@@ -276,7 +276,6 @@ def usage_month(meter_id):
 
 
 @app.route('/meter/<int:meter_id>/<int:year>/<int:month>/monthly.json')
-@login_required
 def monthly_bill(meter_id: int, year: int, month: int):
     # Get user details
     user_id, user_name = get_user_details()
