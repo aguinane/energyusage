@@ -1,0 +1,71 @@
+{% extends "layout.html" %}
+{% set active_page = active_page|default('meters') -%}
+{% block container %}
+
+{% if form.errors %}
+{% for field_name, field_errors in form.errors|dictsort if field_errors %}
+{% for error in field_errors %}
+<div class="alert alert-danger" role="alert">
+    <strong>Error:</strong> {{ form[field_name].label }}: {{ error }}
+</div>
+{% endfor %}
+{% endfor %}
+{% endif %}
+
+<h1>Manage Meter #{{id}} <small>{{meter_name}}</small></h1>
+
+<ul class="nav nav-tabs">
+    <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('meters.manage_meter', meter_id=id) }}">Meter</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link active" href="{{ url_for('meters.manage_import', meter_id=id) }}">Import</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('meters.manage_export', meter_id=id) }}">Export</a>
+    </li>
+</ul>
+
+<h3>Import</h3>
+
+<p>You can upload NEM12 or NEM13 files.</p>
+
+<p>You can request them for free from
+    <a href="https://www.ergon.com.au/network/connections/metering/accessing-your-metering-data">Ergon</a>
+    and <a href="https://www.energex.com.au/home/our-services/meters/accessing-your-metering-data">Energex</a>
+
+</p>
+
+<form method="POST" action="{{url_for('meters.manage_import', meter_id=id) }}" enctype="multipart/form-data">
+
+    <div class="form-group">
+        {{ form.upload_file.label }}:
+        {{ form.upload_file(class="form-control") }}
+    </div>
+
+    <button id='submit-data' type="submit" class="btn btn-primary">
+        <i class="fa fa-cloud-upload" aria-hidden="true"></i> Upload
+
+    </button>
+
+    <img src="{{ url_for('static', filename='img/loading_icon.gif') }}" id="loading-img" height="100" width="150" style="display:none" />
+
+
+
+    <script>
+        $('#submit-data').click(function () {
+            $('#loading-img').show(); //<----here
+            $('#submit-data').hide(); //<----here
+        })
+    </script>
+
+
+</form>
+
+
+
+
+
+
+
+{% endblock %}

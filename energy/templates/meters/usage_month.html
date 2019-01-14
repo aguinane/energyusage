@@ -1,0 +1,450 @@
+{% extends "layout.html" %}
+{% set active_page = active_page|default('meters') -%}
+{% block title %}Energy Usage - {{meter_name}} - {{ period_desc }}{% endblock %}
+{% block container %}
+<h1 class="page-header">Energy Usage <small>{{meter_name}}</small></h1>
+
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+
+
+        <li class="breadcrumb-item"><a href="{{url_for('usage_all', meter_id=meter_id) }}">Overview</a></li>
+        <li class="breadcrumb-item active">
+            {{ period_desc }}&nbsp;
+
+            <div class="btn-group btn-group-sm" role="group">
+
+                {% if prev_month %}
+                <a class="btn btn-primary" href="{{ url_for('meters.usage_monthly', meter_id=meter_id, year=prev_month.year, month=prev_month.month) }}"
+                    role="button">⏮️</a>
+                {% else %}
+                <a class="btn btn-primary disabled" href="#" role="button">⏮️</a>
+                {% endif %}
+
+                {% if next_month %}
+                <a class="btn btn-primary" href="{{ url_for('meters.usage_monthly', meter_id=meter_id, year=next_month.year, month=next_month.month) }}"
+                    role="button">⏭️</a>
+                {% else %}
+                <a class="btn btn-primary disabled" href="#" role="button">⏭️</a>
+                {% endif %}
+            </div>
+        </li>
+    </ol>
+
+</nav>
+
+
+<div class="card">
+    <div class="card-body">
+        <div class="chart-container">
+            <div id="daily_energy" class="chart-placeholder" style="max-width: 100%; height: 150px;"></div>
+        </div>
+        <figcaption class="figure-caption">Average daily usage is {{ (mth.load_total / mth.num_days)|round(1) }}
+            kW/day.</figcaption>
+    </div><!-- /card-body-->
+    <div class="card-body">
+        <div class="chart-container">
+            <img id="chart-loading" src="{{ url_for('static', filename='img/loading_icon.gif') }}" style="position: absolute; visibility:visible" />
+            <div id="daily_usage" class="chart-placeholder" style="max-width: 100%; height: 150px;"></div>
+        </div>
+        <figcaption class="figure-caption">Average demand is between 15:00 to 21:30. Chargeable demand is average of
+            top 4 days.</figcaption>
+    </div><!-- /card-body-->
+</div><!-- /card-->
+
+
+
+
+<div class="card card-body">
+    <h3>Tariff Comparison</h3>
+    <table class="table table-sm table-striped">
+        <thead class="thead-light">
+            <tr>
+                <th></th>
+                <th></th>
+                <th colspan="3">Ergon Energy</th>
+                <th colspan="2">AGL</th>
+                <th colspan="3">Origin</th>
+            </tr>
+            <tr>
+                <th>Component</th>
+                <th>Usage</th>
+                <th>T11</th>
+                <th>T12</th>
+                <th>T14</th>
+                <th>T11</th>
+                <th>T12</th>
+                <th>T11</th>
+                <th>T12</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Service Fee</td>
+                <td>{{ mth.num_days }} days</td>
+                <td>${{ (mth.ergon_t11.supply_charge.cost_incl_gst/100)|round(2) }}</td>
+                <td>${{ (mth.ergon_t12.supply_charge.cost_incl_gst/100)|round(2) }}</td>
+                <td>${{ (mth.ergon_t14.supply_charge.cost_incl_gst/100)|round(2) }}</td>
+                <td>${{ (mth.agl_t11.supply_charge.cost_incl_gst/100)|round(2) }}</td>
+                <td>${{ (mth.agl_t12.supply_charge.cost_incl_gst/100)|round(2) }}</td>
+                <td>${{ (mth.origin_t11.supply_charge.cost_incl_gst/100)|round(2) }}</td>
+                <td>${{ (mth.origin_t12.supply_charge.cost_incl_gst/100)|round(2) }}</td>
+            </tr>
+            <tr>
+                <td>Demand Charge</td>
+
+                <td>{{ (mth.demand)|round(3) }} kW
+                    {% if not peak_month %}<br /><small>min 3 kW</small>{% endif %}</td>
+                <td>-</td>
+                <td>-</td>
+                <td>${{ (mth.ergon_t14.demand.cost_incl_gst/100)|round(2) }}</td>
+                <td>-</td>
+                <td>-</td>
+                <td>-</td>
+                <td>-</td>
+            </tr>
+            <tr>
+                <td>All Consumption</td>
+                <td>{{ (mth.load_total)|round(2) }} kWh</td>
+                <td>${{ (mth.ergon_t11.all_usage.cost_incl_gst/100)|round(2) }}</td>
+                <td>-</td>
+                <td>${{ (mth.ergon_t14.all_usage.cost_incl_gst/100)|round(2) }}</td>
+                <td>${{ (mth.agl_t11.all_usage.cost_incl_gst/100)|round(2) }}</td>
+                <td>-</td>
+                <td>${{ (mth.origin_t11.all_usage.cost_incl_gst/100)|round(2) }}</td>
+                <td>-</td>
+            </tr>
+            <tr>
+                <td>Peak Consumption</td>
+                <td>{{ (mth.load_peak1)|round(2) }} kWh <br /><small>SEQ: {{ (mth.load_peak2)|round(2) }}</small></td>
+                <td>-</td>
+                <td>${{ (mth.ergon_t12.peak.cost_incl_gst/100)|round(2) }}</td>
+                <td>-</td>
+                <td>-</td>
+                <td>${{ (mth.agl_t12.peak.cost_incl_gst/100)|round(2) }}</td>
+                <td>-</td>
+                <td>${{ (mth.origin_t12.peak.cost_incl_gst/100)|round(2) }}</td>
+            </tr>
+            <tr>
+                <td>Shoulder Consumption <small>SEQ Only</small></td>
+                <td>{{ (mth.load_shoulder2)|round(2) }} kWh</td>
+                <td>-</td>
+                <td>-</td>
+                <td>-</td>
+                <td>-</td>
+                <td>${{ (mth.agl_t12.shoulder.cost_incl_gst/100)|round(2) }}</td>
+                <td>-</td>
+                <td>${{ (mth.origin_t12.shoulder.cost_incl_gst/100)|round(2) }}</td>
+            </tr>
+
+            <tr>
+                <td>Off-Peak Consumption</td>
+                <td>{{ (mth.load_offpeak1)|round(2) }} kWh <br /><small>SEQ: {{ (mth.load_offpeak2)|round(2) }}</small></td>
+                <td>-</td>
+                <td>${{ (mth.ergon_t12.offpeak.cost_incl_gst/100)|round(2) }}</td>
+                <td>-</td>
+                <td>-</td>
+                <td>${{ (mth.agl_t12.offpeak.cost_incl_gst/100)|round(2) }}</td>
+                <td>-</td>
+                <td>${{ (mth.origin_t12.offpeak.cost_incl_gst/100)|round(2) }}</td>
+            </tr>
+            <tr>
+                <td>Total</td>
+                <td></td>
+                <td>${{ (mth.ergon_t11.total_charges.cost_incl_gst/100)|round(2) }}</td>
+                <td>${{ (mth.ergon_t12.total_charges.cost_incl_gst/100)|round(2) }}</td>
+                <td>${{ (mth.ergon_t14.total_charges.cost_incl_gst/100)|round(2) }}</td>
+                <td>${{ (mth.agl_t11.total_charges.cost_incl_gst/100)|round(2) }}</td>
+                <td>${{ (mth.agl_t12.total_charges.cost_incl_gst/100)|round(2) }}</td>
+                <td>${{ (mth.origin_t11.total_charges.cost_incl_gst/100)|round(2) }}</td>
+                <td>${{ (mth.origin_t12.total_charges.cost_incl_gst/100)|round(2) }}</td>
+            </tr>
+            <tr>
+                <td>Savings <small>to Ergon T11</small></td>
+                <td></td>
+                <td> - </td>
+                <td>${{ (mth.ergon_t11.total_charges.cost_incl_gst/100-mth.ergon_t12.total_charges.cost_incl_gst/100)|round(2) }}</td>
+                <td>${{ (mth.ergon_t11.total_charges.cost_incl_gst/100-mth.ergon_t14.total_charges.cost_incl_gst/100)|round(2) }}</td>
+                <td>${{ (mth.ergon_t11.total_charges.cost_incl_gst/100-mth.agl_t11.total_charges.cost_incl_gst/100)|round(2) }}</td>
+                <td>${{ (mth.ergon_t11.total_charges.cost_incl_gst/100-mth.agl_t12.total_charges.cost_incl_gst/100)|round(2) }}</td>
+                <td>${{ (mth.ergon_t11.total_charges.cost_incl_gst/100-mth.origin_t11.total_charges.cost_incl_gst/100)|round(2) }}</td>
+                <td>${{ (mth.ergon_t11.total_charges.cost_incl_gst/100-mth.origin_t12.total_charges.cost_incl_gst/100)|round(2) }}</td>
+            </tr>
+
+        </tbody>
+    </table>
+</div><!-- /card-->
+
+
+<div class="card card-body">
+    <h3>Daily Summary</h3>
+    <table id="daily_summary" class="table table-sm table-striped">
+        <thead class="thead-light">
+            <tr>
+                <th>Date</th>
+                <th>General Supply</th>
+                <th>Controlled Load</th>
+                <th>Generation</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr v-for="daily in dailies">
+                <td>{% raw %}{{ daily.day }}{% endraw %}
+                    <a v-bind:href="daily.day_url">📈</a></td>
+                </td>
+                <td>{% raw %}{{ daily.load_total.toFixed(2) }}{% endraw %}</td>
+                <td>{% raw %}{{ daily.control_total.toFixed(2) }}{% endraw %}</td>
+                <td>{% raw %}{{ daily.export_total.toFixed(2) }}{% endraw %}</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+
+<script>
+
+    var dataURL = 'day_summary.json';
+    var app = new Vue({
+        el: '#daily_summary',
+        data: {
+            dailies: []
+        },
+        mounted: function () { // when the Vue app is booted up, this is run automatically.
+            var self = this; // create a closure to access component in the callback below
+            $.ajax({
+                dataType: "json",
+                url: dataURL,
+                success: onDataReceived
+            });
+            function onDataReceived(data) {
+                self.dailies = data;
+            };
+        }
+    });
+
+</script>
+
+
+
+<!-- Flot code - load json into chart div-->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/flot/0.8.3/jquery.flot.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/flot/0.8.3/jquery.flot.time.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/flot/0.8.3/jquery.flot.stack.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/flot/0.8.3/jquery.flot.selection.min.js"></script>
+<script language="javascript" type="text/javascript">
+    $(document).ready(function () {
+        function weekendAreas(axes) {
+
+            var markings = [],
+                d = new Date(axes.xaxis.min);
+
+            // go to the first Saturday
+
+            d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 1) % 7))
+            d.setUTCSeconds(0);
+            d.setUTCMinutes(0);
+            d.setUTCHours(0);
+
+            var i = d.getTime();
+
+            // when we don't set yaxis, the rectangle automatically
+            // extends to infinity upwards and downwards
+
+            do {
+                markings.push({ xaxis: { from: i, to: i + 2 * 24 * 60 * 60 * 1000 }, color: "#F3F3F3" });
+                i += 7 * 24 * 60 * 60 * 1000;
+            } while (i < axes.xaxis.max);
+
+            return markings;
+        }
+
+        $.getJSON("{{ url_for('daily_data', meter_id=meter_id, start_date=start_date, end_date=end_date)|safe }}", function (json) {
+            //success - data loaded, now use plot:
+            var plotarea = $("#daily_energy");
+
+            // Create plot object
+            var plot = $.plot(
+                //plot area
+                plotarea,
+                //plot data
+                [
+                    {
+                        data: json.consumption,
+                        bars: {
+                            show: true,
+                            fill: true,
+                            align: 'right',
+                            barWidth: 86400000
+                        },
+                        label: "Usage (kWh)"
+                    }
+                ],
+                // plot settings
+                {
+                    series: { stack: true },
+                    grid: {
+                        hoverable: true,
+                        clickable: true,
+                        markings: weekendAreas
+                    },
+                    yaxis: { label: "Events" },
+                    xaxis: {
+                        mode: "time",
+                        minTickSize: [1, "{{ plot_settings.minTickSize }}"]
+                    }
+                }
+            );
+            // hide loading image when done plotting
+            document.getElementById('chart-loading').style.visibility = 'hidden';
+        });
+
+        function showTooltip(x, y, contents) {
+            $('<div id="tooltip">' + contents + '</div>').css({
+                position: 'absolute',
+                display: 'none',
+                top: y + 5,
+                left: x + 5,
+                border: '1px solid #fdd',
+                padding: '2px',
+                'background-color': '#fee',
+                opacity: 0.80
+            }).appendTo("body").fadeIn(200);
+        }
+
+
+
+
+
+        var previousPoint = null;
+        $("#daily_energy").bind("plothover", function (event, pos, item) {
+            $("#x").text(pos.x.toFixed(2));
+            $("#y").text(pos.y.toFixed(2));
+
+            if (item) {
+                if (previousPoint != item.dataIndex) {
+                    previousPoint = item.dataIndex;
+
+                    $("#tooltip").remove();
+                    var x = new Date(item.datapoint[0]);
+                    var xstr = x.getUTCFullYear() + '-' + (x.getUTCMonth() + 1) + '-' + x.getUTCDate();
+                    var y = item.datapoint[1].toFixed(2);
+                    showTooltip(item.pageX, item.pageY,
+                        "<strong>" + item.series.label + ":</strong> "
+                        + y + " [" + xstr + "]");
+                }
+            }
+            else {
+                $("#tooltip").remove();
+                previousPoint = null;
+            }
+
+        });
+    });
+</script>
+
+
+<script language="javascript" type="text/javascript">
+    $(document).ready(function () {
+        function weekendAreas(axes) {
+
+            var markings = [],
+                d = new Date(axes.xaxis.min);
+
+            // go to the first Saturday
+
+            d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 1) % 7))
+            d.setUTCSeconds(0);
+            d.setUTCMinutes(0);
+            d.setUTCHours(0);
+
+            var i = d.getTime();
+
+            // when we don't set yaxis, the rectangle automatically
+            // extends to infinity upwards and downwards
+
+            do {
+                markings.push({ xaxis: { from: i, to: i + 2 * 24 * 60 * 60 * 1000 }, color: "#F3F3F3" });
+                i += 7 * 24 * 60 * 60 * 1000;
+            } while (i < axes.xaxis.max);
+
+            return markings;
+        }
+
+        $.getJSON("{{ url_for('daily_data', meter_id=meter_id, start_date=start_date, end_date=end_date)|safe }}", function (json) {
+            //success - data loaded, now use plot:
+            var plotarea = $("#daily_usage");
+
+            // Create plot object
+            var plot = $.plot(
+                //plot area
+                plotarea,
+                //plot data
+                [
+                    {
+                        data: json.demand,
+                        bars: {
+                            show: true,
+                            fill: true,
+                            align: 'right',
+                            barWidth: 86400000
+                        },
+                        label: "Demand (kW)"
+                    }
+                ],
+                // plot settings
+                {
+                    series: { stack: true },
+                    grid: {
+                        hoverable: true,
+                        clickable: true,
+                        markings: weekendAreas
+                    },
+                    yaxis: { label: "Events" },
+                    xaxis: {
+                        mode: "time",
+                        minTickSize: [1, "{{ plot_settings.minTickSize }}"]
+                    }
+                }
+            );
+        });
+
+        function showTooltip(x, y, contents) {
+            $('<div id="tooltip">' + contents + '</div>').css({
+                position: 'absolute',
+                display: 'none',
+                top: y + 5,
+                left: x + 5,
+                border: '1px solid #fdd',
+                padding: '2px',
+                'background-color': '#fee',
+                opacity: 0.80
+            }).appendTo("body").fadeIn(200);
+        }
+
+        var previousPoint = null;
+        $("#daily_usage").bind("plothover", function (event, pos, item) {
+            $("#x").text(pos.x.toFixed(2));
+            $("#y").text(pos.y.toFixed(2));
+
+            if (item) {
+                if (previousPoint != item.dataIndex) {
+                    previousPoint = item.dataIndex;
+
+                    $("#tooltip").remove();
+                    var x = item.datapoint[0].toFixed(2),
+                        y = item.datapoint[1].toFixed(2)
+                    showTooltip(item.pageX, item.pageY,
+                        item.series.label + ": " + y);
+                }
+            }
+            else {
+                $("#tooltip").remove();
+                previousPoint = null;
+            }
+
+        });
+    });
+</script>
+
+{% endblock container%}

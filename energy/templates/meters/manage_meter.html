@@ -1,0 +1,48 @@
+{% extends "layout.html" %}
+{% set active_page = active_page|default('meters') -%}
+{% block container %}
+
+{% if form.errors %}
+{% for field_name, field_errors in form.errors|dictsort if field_errors %}
+{% for error in field_errors %}
+<div class="alert alert-danger" role="alert">
+    <strong>Error:</strong> {{ form[field_name].label }}: {{ error }}
+</div>
+{% endfor %}
+{% endfor %}
+{% endif %}
+
+<h1>Manage Meter #{{id}} <small>{{meter_name}}</small></h1>
+
+<ul class="nav nav-tabs">
+    <li class="nav-item">
+        <a class="nav-link active" href="{{ url_for('meters.manage_meter', meter_id=id) }}">Meter</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('meters.manage_import', meter_id=id) }}">Import</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('meters.manage_export', meter_id=id) }}">Export</a>
+    </li>
+</ul>
+
+<h3>Meter Details</h3>
+
+
+<div class="row">
+    <div class="col-sm-6">
+
+        <form method="POST" action="{{ url_for('meters.manage_meter', meter_id=id) }}">
+            <div class="form-group">{{ form.meter_name.label }}: {{ form.meter_name(class="form-control", max=20) }}</div>
+            <div class="form-group">{{ form.sharing.label }}: {{ form.sharing(class="form-control") }}</div>
+            <div class="form-group">{{ form.api_key.label }}: {{ form.api_key(disabled=True, class="form-control") }}</div>
+
+            <button type="submit" class="btn btn-primary">Update Meter</button>
+        </form>
+
+    </div><!-- /col-->
+</div><!-- /row-->
+
+
+
+{% endblock %}

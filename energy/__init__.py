@@ -27,6 +27,8 @@ login_manager.login_view = "signin"
 from energy.api import api
 app.register_blueprint(api)
 
+from energy.meters import meters  # noqa
+app.register_blueprint(meters, url_prefix="/meters")
 
 @login_manager.user_loader
 def load_user(userid):

@@ -44,42 +44,6 @@ def index():
     return render_template('index.html')
 
 
-@app.route('/meters')
-def meters():
-    user_id, _ = get_user_details()
-    user_meters = list(get_user_meters(user_id))
-    public_meters = list(get_public_meters())
-    return render_template('meters.html',
-                           user_meters=user_meters,
-                           public_meters=public_meters)
-
-
-@app.route('/new_meter', methods=["GET", "POST"])
-@login_required
-def new_meter():
-    """ Form to create a new meter record """
-    form = NewMeter()
-    if form.validate_on_submit():
-        user_id, user_name = get_user_details()
-        if not user_id:
-            flash('Something went wrong :/', category='error')
-            return redirect(url_for('new_meter'))
-        api_key = str(uuid.uuid4())
-        meter = Meter(user_id=user_id,
-                      meter_name=form.meter_name.data.upper().strip(),
-                      sharing=form.sharing.data,
-                      api_key=api_key)
-        try:
-            db.session.add(meter)
-            db.session.commit()
-            flash('New meter created!', category='success')
-            return redirect(url_for('index'))
-        except sqlalchemy.exc.IntegrityError:
-            flash('Sorry, something went wrong :/', category='warning')
-            return redirect(url_for('new_meter'))
-    return render_template('new_meter.html', form=form)
-
-
 def check_meter_permissions(user_id, meter_id):
     """ Return if user can see a meter """
     meter_id = int(meter_id)
@@ -96,93 +60,46 @@ def check_meter_permissions(user_id, meter_id):
     return visible, editable
 
 
-@app.route('/manage_meter/<int:meter_id>', methods=["GET", "POST"])
+@app.route('/new_meter', methods=["GET", "POST"])
 @login_required
-def manage_meter(meter_id):
-    """ Manage meter details """
-    user_id, user_name = get_user_details()
-    visible, editable = check_meter_permissions(user_id, meter_id)
-    if not editable:
-        msg = 'Not authorised to manage this meter.'
-        flash(msg, category='warning')
-        return redirect(url_for('meters'))
-
-    meter = Meter.query.filter_by(meter_id=meter_id).first()
-    form = MeterDetails()
+def new_meter():
+    """ Form to create a new meter record """
+    form = NewMeter()
     if form.validate_on_submit():
-        meter.meter_name = form.meter_name.data.upper().strip()
-        meter.sharing = form.sharing.data
-        db.session.commit()
-        flash('Meter updated', category='success')
-        return redirect(url_for('manage_meter', meter_id=meter_id))
-    else:
-        form.meter_name.data = meter.meter_name
-        form.sharing.data = meter.sharing
-        form.api_key.data = meter.api_key
-    return render_template('manage_meter.html', id=meter_id,
-                           meter_name=get_meter_name(meter_id),
-                           form=form)
+        user_id, user_name = get_user_details()
+        if not user_id:
+            flash('Something went wrong :/', category='error')
+            return redirect(url_for('new_meter'))
+        api_key = str(uuid.uuid4())
+        meter = Meter(
+            user_id=user_id,
+            meter_name=form.meter_name.data.upper().strip(),
+            sharing=form.sharing.data,
+            api_key=api_key)
+        try:
+            db.session.add(meter)
+            db.session.commit()
+            flash('New meter created!', category='success')
+            return redirect(url_for('index'))
+        except sqlalchemy.exc.IntegrityError:
+            flash('Sorry, something went wrong :/', category='warning')
+            return redirect(url_for('new_meter'))
+    return render_template('new_meter.html', form=form)
 
 
-@app.route('/manage_import/<int:meter_id>', methods=["GET", "POST"])
-@login_required
-def manage_import(meter_id):
-    """ Import meter data """
-    user_id, user_name = get_user_details()
-    visible, editable = check_meter_permissions(user_id, meter_id)
-    if not editable:
-        msg = 'Not authorised to manage this meter.'
-        flash(msg, category='warning')
-        return redirect(url_for('meters'))
 
-    form = FileForm()
-    if form.validate_on_submit():
-        filename = secure_filename(str(meter_id) + '.csv')
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        form.upload_file.data.save(file_path)
-
-        nmi = get_meter_name(meter_id)
-        load_nem_data(meter_id, nmi, file_path)
-        flash('Readings added', category='success')
-
-        return redirect(url_for('manage_import', meter_id=meter_id))
-    return render_template('manage_import.html', id=meter_id,
-                           meter_name=get_meter_name(meter_id),
-                           form=form)
-
-
-@app.route('/manage_export/<int:meter_id>', methods=["GET", "POST"])
-@login_required
-def manage_export(meter_id):
-    """ Manage meter data """
-    user_id, user_name = get_user_details()
-    visible, editable = check_meter_permissions(user_id, meter_id)
-    if not editable:
-        msg = 'Not authorised to manage this meter.'
-        flash(msg, category='warning')
-        return redirect(url_for('meters'))
-
-    form = FlaskForm()
-    if form.validate_on_submit():
-        delete_meter_data(meter_id)
-        msg = 'Meter deleted!'
-        flash(msg, category='success')
-        return redirect(url_for('meters'))
-
-    return render_template('manage_export.html', id=meter_id,
-                           meter_name=get_meter_name(meter_id),
-                           form=form)
 
 
 @app.route('/export')
 @login_required
 def export_data():
     user_id, user_name = get_user_details()
-    return Response(export_meter_data(user_id),
-                    mimetype="text/csv",
-                    headers={"Content-disposition":
-                             "attachment; filename=data-export.csv"}
-                    )
+    return Response(
+        export_meter_data(user_id),
+        mimetype="text/csv",
+        headers={
+            "Content-disposition": "attachment; filename=data-export.csv"
+        })
 
 
 @app.route('/signup', methods=["GET", "POST"])
@@ -197,7 +114,9 @@ def signup():
             flash('User created!', category='success')
             return redirect(url_for('index'))
         except sqlalchemy.exc.IntegrityError:
-            flash('Sorry, a user with that name already exists.', category='warning')
+            flash(
+                'Sorry, a user with that name already exists.',
+                category='warning')
             return redirect(url_for('signup'))
 
     return render_template('signup.html', form=form)
@@ -210,8 +129,9 @@ def signin():
         user = User.query.filter_by(
             username=form.username.data.lower()).first()
         if user is None:
-            flash('No user called {} found!'.format(form.username.data.lower()),
-                  category='danger')
+            flash(
+                'No user called {} found!'.format(form.username.data.lower()),
+                category='danger')
             return redirect(url_for('signin'))
         if user.check_password(form.password.data):
             login_user(user)
@@ -227,52 +147,34 @@ def signout():
     return redirect(url_for('index'))
 
 
-@app.route('/meter/<int:meter_id>/month_usage/', methods=["GET", "POST"])
-def usage_month(meter_id):
-    """ Get monthly usage details """
-    # Get user details
-    user_id, user_name = get_user_details()
-    visible, editable = check_meter_permissions(user_id, meter_id)
-    if not visible:
-        return 'Not authorised to view this page', 403
+@app.route('/meter/<int:meter_id>/usage_fy/')
+def current_fy(meter_id):
+    """ Get Fin Year usage details """
+    fin_year = current_fin_yr()
+    return redirect(url_for('usage_fy', meter_id=meter_id, fin_year=fin_year))
 
-    # Get meter details
-    first_record, last_record, num_days = get_meter_stats(meter_id)
-    if num_days < 1:
-        flash('You need to upload some data before you can chart usage.',
-              category='warning')
-        return redirect(url_for('manage_import', meter_id=meter_id))
 
-    # Specify default month to report on
-    try:
-        report_date = request.values['report_date']
-    except KeyError:
-        report_date = '{}-{}-01'.format(str(last_record.year).zfill(2),
-                                        str(last_record.month).zfill(2))
-        return redirect(url_for('usage_month', meter_id=meter_id, report_date=report_date))
+@app.route('/meter/<int:meter_id>/usage_fy/<fin_year>')
+def usage_fy(meter_id, fin_year):
+    """ Get Fin Year usage details """
 
-    rs = arrow.get(report_date)
-    rs = arrow.get(rs.year, rs.month, 1)  # Make sure start of month
-    re = rs.replace(months=+1)
-    if rs < first_record:
-        rs = first_record
-    if re > last_record:
-        re = last_record
-    period_desc = rs.format('MMM YY')
-    period_nav = get_navigation_range('month', rs, first_record, last_record)
+    return render_template(
+        'usage_fy.html',
+        meter_id=meter_id,
+        meter_name=get_meter_name(meter_id),
+        fin_year=fin_year)
 
-    plot_settings = calculate_plot_settings(report_period='month')
-    mth = monthly_bill_data(meter_id, rs.year, rs.month)
-    return render_template('usage_month.html', meter_id=meter_id,
-                           meter_name=get_meter_name(meter_id),
-                           report_period='month', report_date=report_date,
-                           period_desc=period_desc,
-                           period_nav=period_nav,
-                           plot_settings=plot_settings,
-                           start_date=rs.format('YYYY-MM-DD'),
-                           end_date=re.format('YYYY-MM-DD'),
-                           mth=mth
-                           )
+
+def current_fin_yr() -> str:
+    """ Return the current FY """
+    now = datetime.datetime.now()
+    if now.month > 6:
+        fy_start = now.year
+    else:
+        fy_start = now.year - 1
+    fy_end = str(fy_start + 1)
+    return f'{fy_start}-{fy_end[-2:]}'
+
 
 
 @app.route('/meter/<int:meter_id>/<int:year>/<int:month>/monthly.json')
@@ -282,11 +184,9 @@ def monthly_bill(meter_id: int, year: int, month: int):
     visible, editable = check_meter_permissions(user_id, meter_id)
     if not visible:
         return 'Not authorised to view this page', 403
-
     """ Return the monthly bill costs as json """
     month_bill = monthly_bill_data(meter_id, year, month)
     return jsonify(month_bill)
-
 
 
 @app.route('/meter/<int:meter_id>/all_usage/', methods=["GET", "POST"])
@@ -301,9 +201,10 @@ def usage_all(meter_id: int):
     # Get meter details
     first_record, last_record, num_days = get_meter_stats(meter_id)
     if num_days < 1:
-        flash('You need to upload some data before you can chart usage.',
-              category='warning')
-        return redirect(url_for('manage_import', id=meter_id))
+        flash(
+            'You need to upload some data before you can chart usage.',
+            category='warning')
+        return redirect(url_for('meters.manage_import', id=meter_id))
 
     rs = arrow.get(first_record)
     re = arrow.get(last_record)
@@ -312,21 +213,23 @@ def usage_all(meter_id: int):
     plot_settings = calculate_plot_settings(report_period='all')
 
     start, end = get_data_range(meter_id)
-    billing_months =  get_month_ranges(start, end)
+    billing_months = get_month_ranges(start, end)
     fys = sorted(set([mth[2] for mth in billing_months]), reverse=True)
 
-    return render_template('usage_all.html', meter_id=meter_id,
-                           meter_name=get_meter_name(meter_id),
-                           plot_settings=plot_settings,
-                           start_date=rs.format('YYYY-MM-DD'),
-                           end_date=re.format('YYYY-MM-DD'),
-                           billing_months=billing_months, fys=fys
-                           )
+    return render_template(
+        'usage_all.html',
+        meter_id=meter_id,
+        meter_name=get_meter_name(meter_id),
+        plot_settings=plot_settings,
+        start_date=rs.format('YYYY-MM-DD'),
+        end_date=re.format('YYYY-MM-DD'),
+        billing_months=billing_months,
+        fys=fys)
 
 
 def get_billing_months(start_date, end_date):
     """ Return list of billing months """
-    for i in range(start_date.year, end_date.year+1):
+    for i in range(start_date.year, end_date.year + 1):
         if start_date.year == end_date.year:
             start_month = start_date.month
             stop_month = end_date.month
@@ -340,56 +243,11 @@ def get_billing_months(start_date, end_date):
             start_month = 1
             stop_month = 12
 
-        for j in range(start_month, stop_month+1):
+        for j in range(start_month, stop_month + 1):
             month_start = datetime.datetime(i, j, 1)
             month_start = arrow.get(month_start).format('YYYY-MM-DD')
             month_desc = arrow.get(month_start).format('MMM YY')
             yield month_start, month_desc
-
-
-@app.route('/meter/<int:meter_id>/day_usage/', methods=["GET", "POST"])
-def usage_day(meter_id):
-    """ Get daily usage stats """
-    # Get user details
-    user_id, user_name = get_user_details()
-
-    visible, editable = check_meter_permissions(user_id, meter_id)
-    if not visible:
-        return 'Not authorised to view this page', 403
-
-    # Get meter details
-    first_record, last_record, num_days = get_meter_stats(meter_id)
-    if num_days == 0:
-        flash('You need to upload some data before you can chart usage.',
-              category='warning')
-        return redirect(url_for('manage_import', id=meter_id))
-
-    # Specify default day to report on
-    try:
-        report_date = request.values['report_date']
-    except KeyError:
-        report_date = '{}-{}-{}'.format(str(last_record.year).zfill(2),
-                                        str(last_record.month).zfill(2),
-                                        str(last_record.day).zfill(2))
-        return redirect(url_for('usage_day', meter_id=meter_id, report_date=report_date))
-
-    # Get end of reporting period
-    # And next and previous periods
-    rs = arrow.get(report_date)
-    re = rs.replace(days=+1)
-    period_desc = rs.format('ddd DD MMM YY')
-    period_nav = get_navigation_range('day', rs, first_record, last_record)
-    plot_settings = calculate_plot_settings(report_period='day', interval=30)
-
-    return render_template('usage_day.html', meter_id=meter_id,
-                           meter_name=get_meter_name(meter_id),
-                           report_period='day', report_date=report_date,
-                           period_desc=period_desc,
-                           period_nav=period_nav,
-                           plot_settings=plot_settings,
-                           start_date=rs.format('YYYY-MM-DD'),
-                           end_date=re.format('YYYY-MM-DD')
-                           )
 
 
 @app.route('/energy_data/')
@@ -407,7 +265,6 @@ def energy_data(meter_id=None):
         end_date = arrow.get(params['end_date']).datetime
         flotData = get_interval_chart_data(meter_id, start_date, end_date)
         return jsonify(flotData)
-
 
 
 @app.route('/about/')
@@ -455,37 +312,6 @@ def get_meter_stats(meter_id):
     return first_record, last_record, num_days
 
 
-def get_navigation_range(report_period, rs, first_record, last_record):
-    """ Get the next period to report on (if data available)
-    """
-    if report_period == 'day':
-        prev_date = rs.replace(days=-1)
-        next_date = rs.replace(days=+1)
-    else:
-        prev_date = rs.replace(months=-1)
-        next_date = rs.replace(months=+1)
-
-    # Define valid navigation ranges
-    if next_date >= last_record:
-        next_date_enabled = False
-    else:
-        next_date_enabled = True
-
-    if prev_date <= first_record:
-        if report_period == 'month' and prev_date >= first_record.replace(months=-1):
-            prev_date_enabled = True
-        else:
-            prev_date_enabled = False
-    else:
-        prev_date_enabled = True
-
-    period_nav = {'prev_date': prev_date.format('YYYY-MM-DD'),
-                  'prev_enabled': prev_date_enabled,
-                  'next_date': next_date.format('YYYY-MM-DD'),
-                  'next_enabled': next_date_enabled
-                  }
-
-    return period_nav
 
 
 def calculate_plot_settings(report_period='day', interval=10):
