@@ -6,7 +6,7 @@
 
 import os
 from datetime import datetime, timedelta
-from typing import Tuple
+from typing import Tuple, List
 from sqlalchemy import create_engine
 from sqlalchemy import func
 from sqlalchemy import Column, String, DateTime, Float, Integer
@@ -14,6 +14,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from energy_shaper import group_into_profiled_intervals
 import calendar
+
 
 # Initialize the database
 Base = declarative_base()
@@ -75,7 +76,8 @@ def save_energy_reading(session, ch_name, read_start: datetime,
 
 
 def get_load_energy_readings(meter_id, read_start: datetime,
-                             read_end: datetime):
+                             read_end: datetime,
+                             channels: List[str] =['E1', '11']):
     """ Get energy readings """
 
     engine = get_db_engine(meter_id)
@@ -84,14 +86,13 @@ def get_load_energy_readings(meter_id, read_start: datetime,
 
     # Filter existing records
     res = session.query(Readings).filter(
-        Readings.ch_name.in_(['E1', '11']),
+        Readings.ch_name.in_(channels),
         Readings.read_start >= read_start,
         Readings.read_end <= read_end,
     ).all()
     readings = []
     for r in res:
         readings.append((r.read_start, r.read_end, r.read_value))
-
     return group_into_profiled_intervals(readings, interval_m=5)
 
 
