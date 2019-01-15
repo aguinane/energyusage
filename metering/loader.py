@@ -4,6 +4,7 @@
     Define the meter data models
 """
 
+import logging
 from nemreader import read_nem_file
 from sqlalchemy.orm import sessionmaker
 from energy_shaper import split_into_daily_intervals
@@ -21,7 +22,12 @@ def load_nem_data(meter_id, nmi, nem_file):
     session = Session()
 
     m = read_nem_file(nem_file)
-    channels = m.readings[nmi]
+    try:
+        channels = m.readings[nmi]
+    except KeyError:
+        first_nmi = list(m.readings.keys())[0]
+        logging.warning('NMI of %s not found, using %s instead', nmi, first_nmi)
+        channels = m.readings[first_nmi]
 
     for ch_name in channels.keys():
 
@@ -37,4 +43,3 @@ def load_nem_data(meter_id, nmi, nem_file):
     session.commit()
     refresh_daily_stats(meter_id)
     refresh_monthly_stats(meter_id)
-    
