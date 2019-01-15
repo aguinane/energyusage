@@ -31,7 +31,7 @@ def get_user_details():
     """ Get details of loggged in user """
 
     try:
-        current_username = current_user.username
+        __ = current_user.username
     except AttributeError:
         return None, None
 
@@ -85,9 +85,6 @@ def new_meter():
             flash('Sorry, something went wrong :/', category='warning')
             return redirect(url_for('new_meter'))
     return render_template('new_meter.html', form=form)
-
-
-
 
 
 @app.route('/export')
@@ -150,7 +147,7 @@ def signout():
 @app.route('/meter/<int:meter_id>/usage_fy/')
 def current_fy(meter_id):
     """ Get Fin Year usage details """
-    fin_year = current_fin_yr()
+    fin_year = get_financial_year(datetime.datetime.now())
     return redirect(url_for('usage_fy', meter_id=meter_id, fin_year=fin_year))
 
 
@@ -165,16 +162,14 @@ def usage_fy(meter_id, fin_year):
         fin_year=fin_year)
 
 
-def current_fin_yr() -> str:
+def get_financial_year(dt: datetime.datetime) -> str:
     """ Return the current FY """
-    now = datetime.datetime.now()
-    if now.month > 6:
-        fy_start = now.year
+    if dt.month > 6:
+        fy_start = dt.year
     else:
-        fy_start = now.year - 1
+        fy_start = dt.year - 1
     fy_end = str(fy_start + 1)
     return f'{fy_start}-{fy_end[-2:]}'
-
 
 
 @app.route('/meter/<int:meter_id>/<int:year>/<int:month>/monthly.json')
@@ -250,23 +245,6 @@ def get_billing_months(start_date, end_date):
             yield month_start, month_desc
 
 
-@app.route('/energy_data/')
-@app.route('/energy_data/<meter_id>.json', methods=['POST', 'GET'])
-def energy_data(meter_id=None):
-    user_id, user_name = get_user_details()
-    visible, editable = check_meter_permissions(user_id, meter_id)
-    if not visible:
-        return 'Not authorised to view this page', 403
-    if meter_id is None:
-        return 'json chart api'
-    else:
-        params = request.args.to_dict()
-        start_date = arrow.get(params['start_date']).datetime
-        end_date = arrow.get(params['end_date']).datetime
-        flotData = get_interval_chart_data(meter_id, start_date, end_date)
-        return jsonify(flotData)
-
-
 @app.route('/about/')
 def about():
     return render_template('about.html')
@@ -310,8 +288,6 @@ def get_meter_stats(meter_id):
     if num_days < 1:
         num_days = (last_record - first_record).seconds * 60 * 60 * 24
     return first_record, last_record, num_days
-
-
 
 
 def calculate_plot_settings(report_period='day', interval=10):

@@ -19,6 +19,10 @@ from . import get_daily_energy_readings
 from . import update_daily_total
 from . import update_monthly_total
 
+LOAD_CHS = ['E1', '11']
+CONTROL_CHS = ['E2', '41']
+GENERATION_CHS = ['B1', '71']
+
 
 def refresh_daily_stats(meter_id):
     """ Update the daily totals after loading new readings """
@@ -29,15 +33,40 @@ def refresh_daily_stats(meter_id):
     session = Session()
 
     start, end = get_data_range(meter_id)
-    records = list(get_load_energy_readings(meter_id, start, end))
-    daily_ergon = list(get_daily_usages(
-        records, retailer='ergon', tariff='t12'))
+
+    # Get General Consumption Stats
+    records = list(
+        get_load_energy_readings(meter_id, start, end, channels=LOAD_CHS))
+    daily_ergon = list(
+        get_daily_usages(records, retailer='ergon', tariff='t12'))
     daily_seq = list(get_daily_usages(records, retailer='agl', tariff='t12'))
+
+    # Get Controlled Load Stats
+    records = list(
+        get_load_energy_readings(meter_id, start, end, channels=CONTROL_CHS))
+    daily_control = list(get_daily_usages(records))
+
+    # Get Generation Stats
+    records = list(
+        get_load_energy_readings(
+            meter_id, start, end, channels=GENERATION_CHS))
+    daily_generation = list(get_daily_usages(records))
+
     for i, day_ergon in enumerate(daily_ergon):
-        update_daily_total(session, day_ergon.day,
-                           day_ergon.total, 0, 0,
-                           day_ergon.peak, day_ergon.shoulder,
-                           daily_seq[i].peak, daily_seq[i].shoulder)
+        # See if Control and Generation Channels exist
+        try:
+            controlled_total = daily_control[i].total
+        except IndexError:
+            controlled_total = 0
+        try:
+            generation_total = daily_generation[i].total
+        except IndexError:
+            generation_total = 0
+
+        update_daily_total(session, day_ergon.day, day_ergon.total,
+                           controlled_total, generation_total, day_ergon.peak,
+                           day_ergon.shoulder, daily_seq[i].peak,
+                           daily_seq[i].shoulder)
     session.commit()
 
 
@@ -54,8 +83,8 @@ def refresh_monthly_stats(meter_id):
         month_start = datetime(year, month, 1)
         month_end = month_start + relativedelta(months=1) - timedelta(days=1)
         num_days = month_end.day
-        daily_totals = list(get_daily_energy_readings(
-            meter_id, month_start, month_end))
+        daily_totals = list(
+            get_daily_energy_readings(meter_id, month_start, month_end))
 
         days = 0
         load_total = 0
@@ -85,16 +114,15 @@ def refresh_monthly_stats(meter_id):
         top_4_avg = mean(top_4)
         demand = average_daily_peak_demand(top_4_avg)
 
-        unique = set(demands) 
+        unique = set(demands)
         if len(unique) < 5:
             # Demand not variable enough, multiple demand by 2 to compensate
             # Readings are probably not interval readings
             demand = demand * 2
 
-        update_monthly_total(session, year, month, num_days,
-                             load_total, control_total, export_total,
-                             demand, load_peak1, load_shoulder1,
-                             load_peak2, load_shoulder2)
+        update_monthly_total(session, year, month, num_days, load_total,
+                             control_total, export_total, demand, load_peak1,
+                             load_shoulder1, load_peak2, load_shoulder2)
 
         session.commit()
 
@@ -102,7 +130,7 @@ def refresh_monthly_stats(meter_id):
 def average_daily_peak_demand(peak_usage_kWh):
     """ Calculate the average daily peak demand in kW
     """
-    peak_ratio = 1/6.5  # Peak period is 6.5 hrs
+    peak_ratio = 1 / 6.5  # Peak period is 6.5 hrs
     return peak_usage_kWh * peak_ratio
 
 

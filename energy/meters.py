@@ -7,18 +7,23 @@
 import os
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
+from typing import Optional, Tuple
 from flask import Blueprint, render_template, redirect, url_for
 from flask import request, flash, jsonify
 from flask_login import login_required, current_user
 from flask_wtf import FlaskForm
 from werkzeug.utils import secure_filename
-import arrow
+import pytz
 from metering import load_nem_data
-from metering import get_data_range, get_month_ranges
+from metering import get_load_energy_readings
 from metering import get_daily_energy_readings
+from metering import get_monthly_energy_readings
+from metering import get_data_range, get_month_ranges
+from metering import LOAD_CHS, CONTROL_CHS, GENERATION_CHS
+from energy_shaper import split_into_profiled_intervals
+from energy_shaper import group_into_profiled_intervals
 
 from . import app, db
-from .views import get_user_details
 from .views import get_user_meters
 from .views import get_public_meters
 from .forms import FileForm, NewMeter, MeterDetails
@@ -199,9 +204,6 @@ def usage_daily(meter_id, year, month, day):
     if next_day > last_record:
         next_day = None
 
-    # Define chart settings
-    plot_settings = calculate_plot_settings(report_period='day', interval=30)
-
     return render_template(
         'meters/usage_day.html',
         meter_id=meter_id,
@@ -209,11 +211,69 @@ def usage_daily(meter_id, year, month, day):
         report_period='day',
         rpt_start=rpt_start,
         period_desc=rpt_start.strftime("%a %d %b %y"),
-        plot_settings=plot_settings,
         start_date=rpt_start.strftime("%Y-%m-%d"),
         end_date=rpt_end.strftime("%Y-%m-%d"),
         prev_day=prev_day,
         next_day=next_day)
+
+
+@meters.route('/<int:meter_id>/<start>/<end>/energy_data.json')
+def energy_data(meter_id, start, end):
+    if not meter_visible(meter_id):
+        return 'Not authorised to view this page', 403
+
+    start_dt = datetime.strptime(start, "%Y-%m-%d")
+    end_dt = datetime.strptime(end, "%Y-%m-%d")
+
+    chartdata = dict()
+
+    # Add general consumption
+    load_data = []
+    reads = list(
+        get_load_energy_readings(
+            meter_id, start_dt, end_dt, channels=LOAD_CHS))
+    split_reads = group_into_profiled_intervals(reads, interval_m=5)
+    for read in split_reads:
+        read_ts = pytz.utc.localize(read.end).timestamp() * 1000
+        load_data.append((read_ts, read.usage/(5/60)))
+    chartdata['consumption'] = {
+        'label': 'General',
+        'color': '#FFA500',
+        'data': load_data
+    }
+
+    # Controlled load
+    load_data = []
+    reads = list(
+        get_load_energy_readings(
+            meter_id, start_dt, end_dt, channels=CONTROL_CHS))
+    split_reads = group_into_profiled_intervals(reads, interval_m=5)
+    for read in split_reads:
+        if read.usage:
+            read_ts = pytz.utc.localize(read.end).timestamp() * 1000
+            load_data.append((read_ts, read.usage/(5/60)))
+    chartdata['controlled'] = {
+        'label': 'Controlled Load',
+        'color': '#FAB57F',
+        'data': load_data
+    }
+
+    # Add generation
+    load_data = []
+    reads = list(
+        get_load_energy_readings(
+            meter_id, start_dt, end_dt, channels=GENERATION_CHS))
+    split_reads = group_into_profiled_intervals(reads, interval_m=5)
+    for read in split_reads:
+        read_ts = pytz.utc.localize(read.end).timestamp() * 1000
+        load_data.append((read_ts, -read.usage/(5/60)))
+    chartdata['generation'] = {
+        'label': 'Generation',
+        'color': '#006400',
+        'data': load_data
+    }
+
+    return jsonify(chartdata)
 
 
 @meters.route('/<int:meter_id>/usage/<int:year>/<int:month>/day_summary.json')
@@ -224,9 +284,12 @@ def month_day_data(meter_id, year, month):
     # Get start and end of the reporting period
     rpt_start = datetime(year, month, 1)
     rpt_end = rpt_start + relativedelta(months=1)
-    rpt_end -= timedelta(days=1) # Remove last day
+    rpt_end -= timedelta(days=1)  # Remove last day
 
     day_data = []
+    load_data = []
+    control_data = []
+    generation_data = []
     for daily in get_daily_energy_readings(meter_id, rpt_start, rpt_end):
 
         day_url = url_for(
@@ -238,12 +301,59 @@ def month_day_data(meter_id, year, month):
         day_data.append({
             'day': daily.day.strftime("%Y-%m-%d"),
             'day_url': day_url,
-            'timestamp': daily.day.timestamp(),
             'load_total': daily.load_total,
             'control_total': daily.control_total,
             'export_total': daily.export_total
         })
-    return jsonify(day_data)
+        day_end = daily.day + timedelta(days=1)
+        day_ts = pytz.utc.localize(day_end).timestamp() * 1000
+        load_data.append((day_ts, daily.load_total))
+        if daily.control_total:
+            control_data.append((day_ts, daily.control_total))
+        generation_data.append((day_ts, daily.export_total))
+
+    consumption = {
+        'label': "General",
+        'color': '#FFA500',
+        'data': load_data,
+    }
+    controlled = {
+        'label': 'Controlled Load',
+        'color': '#FAB57F',
+        'data': control_data,
+    }
+    generation = {
+        'label': 'Generation',
+        'color': '#006400',
+        'data': generation_data,
+    }
+    json_data = {'dailies': day_data, 'consumption': consumption, 'controlled': controlled, 'generation': generation}
+    return jsonify(json_data)
+
+
+@meters.route('/<int:meter_id>/usage/month_summary.json')
+def monthly_data(meter_id):
+    """ Return json object for flot chart
+    """
+
+    start, end = get_data_range(meter_id)
+
+    load_data = []
+    for year, month, _ in get_month_ranges(start, end):
+
+        day_dt = datetime(year, month, 1)
+        day_ts = pytz.utc.localize(day_dt).timestamp() * 1000
+        mth = get_monthly_energy_readings(meter_id, year, month)
+        daily_load = mth.load_total / mth.num_days
+        load_data.append((day_ts, daily_load))
+
+    consumption = {
+        'label': "General",
+        'color': '#FFA500',
+        'data': load_data,
+    }
+    json_data = {'consumption': consumption}
+    return jsonify(json_data)
 
 
 @meters.route('/<int:meter_id>/usage/<int:year>/<int:month>/')
@@ -273,13 +383,9 @@ def usage_monthly(meter_id, year, month):
     if next_month > last_record:
         next_month = None
 
-    # Define chart settings
-    plot_settings = calculate_plot_settings(report_period='month')
-
     mth = monthly_bill_data(meter_id, rpt_start.year, rpt_start.month)
 
     daily_reads = get_daily_energy_readings(meter_id, rpt_start, rpt_end)
-    print(daily_reads)
 
     return render_template(
         'meters/usage_month.html',
@@ -288,7 +394,6 @@ def usage_monthly(meter_id, year, month):
         report_period='month',
         report_date=rpt_start.strftime("%Y-%m-%d"),
         period_desc=rpt_start.strftime("%b %y"),
-        plot_settings=plot_settings,
         start_date=rpt_start.strftime("%Y-%m-%d"),
         end_date=rpt_end.strftime("%Y-%m-%d"),
         mth=mth,
@@ -297,24 +402,15 @@ def usage_monthly(meter_id, year, month):
         next_month=next_month)
 
 
-def get_meter_stats(meter_id):
+def get_meter_stats(
+        meter_id: int) -> Tuple[Optional[datetime], Optional[datetime], int]:
     """ Get the date range meter data exists for
     """
     first_record, last_record = get_data_range(meter_id)
+    if not last_record:
+        # No data
+        return first_record, last_record, 0
     num_days = (last_record - first_record).days
     if num_days < 1:
         num_days = (last_record - first_record).seconds * 60 * 60 * 24
     return first_record, last_record, num_days
-
-
-def calculate_plot_settings(report_period='day', interval=10):
-    # Specify chart settings depending on report period
-    plot_settings = dict()
-    plot_settings['barWidth'] = 1000 * 60 * interval
-    if report_period == 'all':
-        plot_settings['minTickSize'] = 'month'
-    elif report_period == 'month':
-        plot_settings['minTickSize'] = 'day'
-    else:  # Day
-        plot_settings['minTickSize'] = 'hour'
-    return plot_settings

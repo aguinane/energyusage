@@ -18,4 +18,6 @@ from metering.analyse import refresh_daily_stats
 from metering.analyse import get_month_ranges
 from metering.analyse import refresh_monthly_stats
 
+from metering.analyse import LOAD_CHS, CONTROL_CHS, GENERATION_CHS
+
 from metering.loader import load_nem_data
