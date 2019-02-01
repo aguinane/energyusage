@@ -1,49 +1,274 @@
 {% extends "layout.html" %}
 {% set active_page = active_page|default('meters') -%}
-{% block title %}Energy Usage - {{meter_name}}{% endblock %}
-
+{% block title %}Energy Usage - {{meter_name}} - {{ period_desc }}{% endblock %}
 {% block container %}
-
 <h1 class="page-header">Energy Usage <small>{{meter_name}}</small></h1>
+
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+
+        <li class="breadcrumb-item"><a href="{{url_for('meters.usage_overview', meter_id=meter_id) }}">Overview</a></li>
+        <li class="breadcrumb-item active">
+            {{ period_desc }}&nbsp;
+
+            <div class="btn-group btn-group-sm" role="group">
+
+                {% if prev_fy %}
+                <a class="btn btn-primary" href="{{ url_for('meters.usage_fy', meter_id=meter_id, fin_year=prev_fy) }}"
+                    role="button">⏮️</a>
+                {% else %}
+                <a class="btn btn-primary disabled" href="#" role="button">⏮️</a>
+                {% endif %}
+
+                {% if next_fy %}
+                <a class="btn btn-primary" href="{{ url_for('meters.usage_fy', meter_id=meter_id, fin_year=next_fy) }}"
+                    role="button">⏭️</a>
+                {% else %}
+                <a class="btn btn-primary disabled" href="#" role="button">⏭️</a>
+                {% endif %}
+            </div>
+        </li>
+    </ol>
+
+</nav>
+
 
 <div class="card">
     <div class="card-body">
-        <ul class="nav nav-pills">
-            <li class="nav-item">
-                <a class="nav-link active" href="{{ url_for('usage_all', meter_id=meter_id) }}" role="button">Year</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="{{ url_for('usage_month', meter_id=meter_id) }}" role="button">Month</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="{{ url_for('usage_day', meter_id=meter_id) }}" role="button">Day</a>
-            </li>
+        <div class="chart-container">
+            <img id="chart-loading" src="{{ url_for('static', filename='img/loading_icon.gif') }}" style="position: absolute; visibility:visible" />
+            <div id="load" class="chart-placeholder" style="max-width: 100%; height: 150px;"></div>
+        </div>
+        <figcaption class="figure-caption">Daily Usage (kWh)</figcaption>
 
-            <li class="nav-item">
-                <a class="btn btn-light {% if not period_nav.prev_enabled %}disabled{% endif %}" href="{{ url_for('usage_fy', meter_id=meter_id, report_date=period_nav.prev_date) }}"
-                    role="button">
-                    <i class="fa fa-arrow-left" aria-hidden="true"></i>
-                </a>
-
-                <strong>{{ fin_year }}&nbsp;&nbsp;</strong>
-            </li>
-
-            <a class="btn btn-light {% if not period_nav.next_enabled %}disabled{% endif %}" href="{{ url_for('usage_fy', meter_id=meter_id, report_date=period_nav.next_date) }}"
-                role="button">
-                <i class="fa fa-arrow-right" aria-hidden="true"></i>
-            </a>
-            </li>
-
-
-        </ul>
-
+        <div class="chart-container">
+            <div id="generation" class="chart-placeholder" style="max-width: 100%; height: 100px;"></div>
+        </div>
+        <figcaption class="figure-caption">Daily Generation (kWh)</figcaption>
 
     </div><!-- /card-body-->
 </div><!-- /card-->
 
+<div class="card-deck">
+
+    <div class="card">
+        <div class="card-body">
+            <h3>Tariff Comparison</h3>
 
 
+            <table id="fin_yr_billing" class="table table-striped">
+                <thead>
+                    <tr>
+                        <th colspan="2"></th>
+                        <th colspan="3">Ergon Energy</th>
+                        <th colspan="2">AGL</th>
+                        <th colspan="3">Origin</th>
+                    </tr>
+                    <tr>
+                        <th>Year</th>
+                        <th>Month</th>
+                        <th>T11</th>
+                        <th>T12</th>
+                        <th>T14</th>
+                        <th>T11</th>
+                        <th>T12</th>
+                        <th>T11</th>
+                        <th>T12</th>
+                    </tr>
+                </thead>
+            </table>
+
+        </div><!-- /card-body-->
+    </div><!-- /card-->
 </div><!-- /card-deck-->
+
+
+
+<script>
+
+    //{% for year, month, fy in billing_months %}
+
+
+    $.getJSON("{{ url_for('monthly_bill', meter_id=meter_id, year=year, month=month) }}", function (json) {
+
+        price_t11 = Math.round(json.ergon_t11.total_charges.cost_incl_gst) / 100
+
+        price_t12 = Math.round(json.ergon_t12.total_charges.cost_incl_gst) / 100
+
+        price_t14 = Math.round(json.ergon_t14.total_charges.cost_incl_gst) / 100
+
+        agl_t11 = Math.round(json.agl_t11.total_charges.cost_incl_gst) / 100
+
+        agl_t12 = Math.round(json.agl_t12.total_charges.cost_incl_gst) / 100
+
+        origin_t11 = Math.round(json.origin_t11.total_charges.cost_incl_gst) / 100
+
+        origin_t12 = Math.round(json.origin_t12.total_charges.cost_incl_gst) / 100
+
+
+        row_data = '<tr>'
+        row_data = row_data + '<td>' + json.year + '</td><td>' + json.month + '</td><td>' + price_t11 + '</td>'
+        row_data = row_data + '<td>' + price_t12 + '</td><td>' + price_t14 + '</td>'
+        row_data = row_data + '<td>' + agl_t11 + '</td><td>' + agl_t12 + '</td>'
+        row_data = row_data + '<td>' + origin_t11 + '</td><td>' + origin_t12 + '</td>'
+        row_data = row_data + '<td><a href="/meters/{{meter_id}}/usage/' + json.year + '/' + json.month + '">📈 Month Data</a></td>'
+
+
+        row_data = row_data + '</tr>'
+
+
+        var tableRef = document.getElementById('fin_yr_billing');
+
+        $(tableRef).append(row_data);
+
+    });
+
+    //{% endfor %}
+
+
+
+</script>
+
+
+<!-- Flot code - load json into chart div-->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/flot/0.8.3/jquery.flot.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/flot/0.8.3/jquery.flot.time.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/flot/0.8.3/jquery.flot.stack.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/flot/0.8.3/jquery.flot.selection.min.js"></script>
+<script>
+
+    var plotarea = $("#load");
+    var plotarea2 = $("#generation");
+
+    var plotoptions = {
+        series: { stack: true },
+        grid: {
+            hoverable: true,
+            clickable: true,
+            markings: weekendAreas
+        },
+        legend: {
+            position: "ne",
+        },
+        xaxis: {
+            mode: "time",
+            //timeformat: "%d %a",
+            minTickSize: [1, "day"]
+        },
+        bars: {
+            show: true,
+            fill: true,
+            align: 'right',
+            barWidth: 24 * 60 * 60 * 1000
+        }
+    };
+
+    var plotdata = [];
+    var plotdata2 = [];
+
+    // Apply different background to weekends
+    function weekendAreas(axes) {
+        var markings = [],
+            d = new Date(axes.xaxis.min);
+
+        // go to the first Saturday
+
+        d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 1) % 7))
+        d.setUTCSeconds(0);
+        d.setUTCMinutes(0);
+        d.setUTCHours(0);
+
+        var i = d.getTime();
+
+        // when we don't set yaxis, the rectangle automatically
+        // extends to infinity upwards and downwards
+
+        do {
+            markings.push({ xaxis: { from: i, to: i + 2 * 24 * 60 * 60 * 1000 }, color: "#F3F3F3" });
+            i += 7 * 24 * 60 * 60 * 1000;
+        } while (i < axes.xaxis.max);
+
+        return markings;
+    };
+
+    // Show point values on mouseover
+    function showTooltip(x, y, contents) {
+
+        $('<div id="tooltip">' + contents + '</div>').css({
+            position: 'absolute',
+            display: 'none',
+            top: y + 5,
+            left: x + 5,
+            border: '1px solid #fdd',
+            padding: '2px',
+            'background-color': '#fee',
+            opacity: 0.80
+        }).appendTo("body").fadeIn(200);
+    };
+
+    function populateTooltip(event, pos, item) {
+        $("#x").text(pos.x.toFixed(2));
+        $("#y").text(pos.y.toFixed(2));
+
+        if (item) {
+            if (previousPoint != item.dataIndex) {
+                previousPoint = item.dataIndex;
+
+                $("#tooltip").remove();
+                var x = new Date(item.datapoint[0]);
+                x.setDate(x.getDate() - 1); // Subtract a day to get start
+                var xstr = x.getUTCFullYear() + '-' + (x.getUTCMonth() + 1) + '-' + x.getUTCDate();
+                var y = item.datapoint[1].toFixed(2);
+                showTooltip(item.pageX, item.pageY,
+                    "<strong>" + item.series.label + ":</strong> "
+                    + y + " [" + xstr + "]");
+            }
+        }
+        else {
+            $("#tooltip").remove();
+            previousPoint = null;
+        }
+
+    }
+
+    var previousPoint = null;
+    plotarea.bind("plothover", populateTooltip);
+    plotarea2.bind("plothover", populateTooltip);
+
+    $(document).ready(function () {
+
+        $.plot(plotarea, plotdata, plotoptions);
+
+        $.ajax({
+            url: "day_summary.json",
+            type: "GET",
+            dataType: "json",
+            success: onDataReceived,
+            error: function (XMLHttpRequest, textStatus, errorThrown) {
+                alert("Unable to load usage chart " + errorThrown);
+            }
+        });
+
+        function onDataReceived(data) {
+            // Push the new data onto our existing data array
+            plotdata.push(data.consumption);
+            plotdata.push(data.controlled);
+            plotdata2.push(data.generation);
+            $.plot(plotarea, plotdata, plotoptions);
+            $.plot(plotarea2, plotdata2, plotoptions);
+
+            // hide loading image when done plotting
+            var spinner = document.getElementById('chart-loading');
+            spinner.style.visibility = 'hidden';
+        }
+
+    });
+
+
+
+</script>
+
 
 
 {% endblock container%}

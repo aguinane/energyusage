@@ -8,7 +8,13 @@
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
 
-        <li class="breadcrumb-item"><a href="{{url_for('usage_all', meter_id=meter_id) }}">Overview</a></li>
+        <li class="breadcrumb-item">
+            <a href="{{url_for('meters.usage_overview', meter_id=meter_id) }}">Overview</a>
+        </li>
+        <li class="breadcrumb-item">
+            <a href="{{url_for('meters.usage_fy', meter_id=meter_id, fin_year=fin_yr) }}">{{fin_yr}}</a>
+        </li>
+
         <li class="breadcrumb-item active">
             {{ period_desc }}&nbsp;
 
@@ -189,10 +195,7 @@
             </tr>
         </thead>
         <tbody>
-            <tr v-for="daily in dailies">
-                <td>{% raw %}{{ daily.day }}{% endraw %}
-                    <a v-bind:href="daily.day_url">📈</a></td>
-                </td>
+            <tr>
                 <td>{% raw %}{{ daily.load_total.toFixed(2) }}{% endraw %}</td>
                 <td>{% raw %}{{ daily.control_total.toFixed(2) }}{% endraw %}</td>
                 <td>{% raw %}{{ daily.export_total.toFixed(2) }}{% endraw %}</td>
@@ -313,6 +316,7 @@
 
                 $("#tooltip").remove();
                 var x = new Date(item.datapoint[0]);
+                x.setDate(x.getDate() - 1); // Subtract a day to get start
                 var xstr = x.getUTCFullYear() + '-' + (x.getUTCMonth() + 1) + '-' + x.getUTCDate();
                 var y = item.datapoint[1].toFixed(2);
                 showTooltip(item.pageX, item.pageY,

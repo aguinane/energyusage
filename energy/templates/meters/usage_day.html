@@ -7,6 +7,10 @@
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
         <li class="breadcrumb-item">
+            <a href="{{url_for('meters.usage_fy', meter_id=meter_id, fin_year=fin_yr) }}">{{fin_yr}}</a>
+        </li>
+
+        <li class="breadcrumb-item">
             <a href="{{ url_for('meters.usage_monthly', meter_id=meter_id, year=rpt_start.year, month=rpt_start.month) }}">{{ period_desc[-6:] }}</a>
         </li>
         <li class="breadcrumb-item active">

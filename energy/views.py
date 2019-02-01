@@ -144,32 +144,6 @@ def signout():
     return redirect(url_for('index'))
 
 
-@app.route('/meter/<int:meter_id>/usage_fy/')
-def current_fy(meter_id):
-    """ Get Fin Year usage details """
-    fin_year = get_financial_year(datetime.datetime.now())
-    return redirect(url_for('usage_fy', meter_id=meter_id, fin_year=fin_year))
-
-
-@app.route('/meter/<int:meter_id>/usage_fy/<fin_year>')
-def usage_fy(meter_id, fin_year):
-    """ Get Fin Year usage details """
-
-    return render_template(
-        'usage_fy.html',
-        meter_id=meter_id,
-        meter_name=get_meter_name(meter_id),
-        fin_year=fin_year)
-
-
-def get_financial_year(dt: datetime.datetime) -> str:
-    """ Return the current FY """
-    if dt.month > 6:
-        fy_start = dt.year
-    else:
-        fy_start = dt.year - 1
-    fy_end = str(fy_start + 1)
-    return f'{fy_start}-{fy_end[-2:]}'
 
 
 @app.route('/meter/<int:meter_id>/<int:year>/<int:month>/monthly.json')
@@ -183,43 +157,6 @@ def monthly_bill(meter_id: int, year: int, month: int):
     month_bill = monthly_bill_data(meter_id, year, month)
     return jsonify(month_bill)
 
-
-@app.route('/meter/<int:meter_id>/all_usage/', methods=["GET", "POST"])
-def usage_all(meter_id: int):
-    """ Show billing for all months """
-    # Get user details
-    user_id, user_name = get_user_details()
-    visible, editable = check_meter_permissions(user_id, meter_id)
-    if not visible:
-        return 'Not authorised to view this page', 403
-
-    # Get meter details
-    first_record, last_record, num_days = get_meter_stats(meter_id)
-    if num_days < 1:
-        flash(
-            'You need to upload some data before you can chart usage.',
-            category='warning')
-        return redirect(url_for('meters.manage_import', id=meter_id))
-
-    rs = arrow.get(first_record)
-    re = arrow.get(last_record)
-    num_days = (re - rs).days
-
-    plot_settings = calculate_plot_settings(report_period='all')
-
-    start, end = get_data_range(meter_id)
-    billing_months = get_month_ranges(start, end)
-    fys = sorted(set([mth[2] for mth in billing_months]), reverse=True)
-
-    return render_template(
-        'usage_all.html',
-        meter_id=meter_id,
-        meter_name=get_meter_name(meter_id),
-        plot_settings=plot_settings,
-        start_date=rs.format('YYYY-MM-DD'),
-        end_date=re.format('YYYY-MM-DD'),
-        billing_months=billing_months,
-        fys=fys)
 
 
 def get_billing_months(start_date, end_date):

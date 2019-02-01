@@ -8,6 +8,7 @@ import os
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from typing import Optional, Tuple
+from statistics import mean
 from flask import Blueprint, render_template, redirect, url_for
 from flask import request, flash, jsonify
 from flask_login import login_required, current_user
@@ -20,6 +21,7 @@ from metering import get_daily_energy_readings
 from metering import get_monthly_energy_readings
 from metering import get_data_range, get_month_ranges
 from metering import LOAD_CHS, CONTROL_CHS, GENERATION_CHS
+from metering import get_day_of_week_avg
 from energy_shaper import split_into_profiled_intervals
 from energy_shaper import group_into_profiled_intervals
 
@@ -178,6 +180,179 @@ def usage_redirect(meter_id):
             month=last_record.month))
 
 
+@meters.route('/<int:meter_id>/usage_overview/')
+def usage_overview(meter_id: int):
+    """ Show billing for all months """
+
+    if not meter_visible(meter_id):
+        return 'Not authorised to view this page', 403
+
+    # Get meter details
+    first_record, last_record, num_days = get_meter_stats(meter_id)
+    if num_days < 1:
+        flash(
+            'No data! Upload some data before you can chart usage.',
+            category='warning')
+        return redirect(url_for('meters.manage_import', meter_id=meter_id))
+
+    start, end = get_data_range(meter_id)
+    billing_months = get_month_ranges(start, end)
+    fys = sorted(
+        set([f'{str(mth[2])}-{str(mth[2]+1)[-2:]}' for mth in billing_months]),
+        reverse=True)
+
+    return render_template(
+        'meters/usage_all.html',
+        meter_id=meter_id,
+        meter_name=get_meter_name(meter_id),
+        billing_months=billing_months,
+        fys=fys)
+
+
+@meters.route('/<int:meter_id>/usage_overview/stats.json')
+def usage_stats(meter_id: int):
+    """ Show billing for all months """
+
+    if not meter_visible(meter_id):
+        return 'Not authorised to view this page', 403
+
+    # Get meter details
+    first_record, last_record, num_days = get_meter_stats(meter_id)
+    if num_days < 1:
+        flash(
+            'No data! Upload some data before you can chart usage.',
+            category='warning')
+        return redirect(url_for('meters.manage_import', meter_id=meter_id))
+
+    start, end = get_data_range(meter_id)
+
+    # Get period for calculating meter stats
+    stats_end = end
+    stats_start = stats_end - relativedelta(months=12)
+    if stats_start < start:
+        stats_start = start
+
+    # Calculate meter stats
+    stats = {}
+    stats['day_avgs'] = get_day_of_week_avg(1, stats_start, stats_end)
+
+    return jsonify(stats)
+
+
+@meters.route('/<int:meter_id>/usage/<fin_year>/')
+def usage_fy(meter_id, fin_year):
+    """ Get Fin Year usage details """
+
+    if not meter_visible(meter_id):
+        return 'Not authorised to view this page', 403
+
+    # Get meter details
+    first_record, last_record, num_days = get_meter_stats(meter_id)
+    if num_days == 0:
+        msg = 'You need to upload some data before you can chart usage.'
+        flash(msg, category='warning')
+        return redirect(url_for('meters.manage_import', meter_id=meter_id))
+
+    # Get start and end of the reporting period
+    fy_start = int(fin_year[0:4])
+    rpt_start = datetime(fy_start, 7, 1)
+    rpt_end = datetime(fy_start + 1, 6, 30)
+
+    # Get next/prev periods for navigation
+    prev_fy = rpt_start - timedelta(days=1)
+    if prev_fy < first_record:
+        prev_fy = None
+    else:
+        prev_fy = f'{fy_start-1}-{str(fy_start)[-2:]}'
+    next_fy = rpt_end + timedelta(days=1)
+    if next_fy > last_record:
+        next_fy = None
+    else:
+        next_fy = f'{fy_start+1}-{str(fy_start+2)[-2:]}'
+
+    billing_months = get_month_ranges(rpt_start, rpt_end)
+
+    return render_template(
+        'meters/usage_fy.html',
+        meter_id=meter_id,
+        meter_name=get_meter_name(meter_id),
+        period_desc=fin_year,
+        fin_year=fin_year,
+        prev_fy=prev_fy,
+        next_fy=next_fy,
+        billing_months=billing_months)
+
+
+def get_financial_year(dt: datetime) -> str:
+    """ Return the financial year for a date """
+    if dt.month > 6:
+        fy_start = dt.year
+    else:
+        fy_start = dt.year - 1
+    fy_end = str(fy_start + 1)
+    return f'{fy_start}-{fy_end[-2:]}'
+
+
+@meters.route('/<int:meter_id>/usage/<fin_year>/day_summary.json')
+def fy_day_data(meter_id, fin_year):
+    if not meter_visible(meter_id):
+        return 'Not authorised to view this page', 403
+
+    # Get start and end of the reporting period
+    fy_start = int(fin_year[0:4])
+    rpt_start = datetime(fy_start, 7, 1)
+    rpt_end = datetime(fy_start + 1, 6, 30)
+
+    day_data = []
+    load_data = []
+    control_data = []
+    generation_data = []
+    for daily in get_daily_energy_readings(meter_id, rpt_start, rpt_end):
+
+        day_url = url_for(
+            'meters.usage_daily',
+            meter_id=meter_id,
+            year=daily.day.year,
+            month=daily.day.month,
+            day=daily.day.day)
+        day_data.append({
+            'day': daily.day.strftime("%Y-%m-%d"),
+            'day_url': day_url,
+            'load_total': daily.load_total,
+            'control_total': daily.control_total,
+            'export_total': daily.export_total
+        })
+        day_end = daily.day + timedelta(days=1)
+        day_ts = pytz.utc.localize(day_end).timestamp() * 1000
+        load_data.append((day_ts, daily.load_total))
+        if daily.control_total:
+            control_data.append((day_ts, daily.control_total))
+        generation_data.append((day_ts, daily.export_total))
+
+    consumption = {
+        'label': "General",
+        'color': '#FFA500',
+        'data': load_data,
+    }
+    controlled = {
+        'label': 'Controlled Load',
+        'color': '#FAB57F',
+        'data': control_data,
+    }
+    generation = {
+        'label': 'Generation',
+        'color': '#006400',
+        'data': generation_data,
+    }
+    json_data = {
+        'dailies': day_data,
+        'consumption': consumption,
+        'controlled': controlled,
+        'generation': generation
+    }
+    return jsonify(json_data)
+
+
 @meters.route('/<int:meter_id>/usage/<int:year>/<int:month>/<int:day>/')
 def usage_daily(meter_id, year, month, day):
     """ Get daily usage stats """
@@ -203,6 +378,7 @@ def usage_daily(meter_id, year, month, day):
     next_day = rpt_start + timedelta(days=1)
     if next_day > last_record:
         next_day = None
+    fin_yr = get_financial_year(rpt_start)
 
     return render_template(
         'meters/usage_day.html',
@@ -213,6 +389,7 @@ def usage_daily(meter_id, year, month, day):
         period_desc=rpt_start.strftime("%a %d %b %y"),
         start_date=rpt_start.strftime("%Y-%m-%d"),
         end_date=rpt_end.strftime("%Y-%m-%d"),
+        fin_yr=fin_yr,
         prev_day=prev_day,
         next_day=next_day)
 
@@ -235,7 +412,7 @@ def energy_data(meter_id, start, end):
     split_reads = group_into_profiled_intervals(reads, interval_m=5)
     for read in split_reads:
         read_ts = pytz.utc.localize(read.end).timestamp() * 1000
-        load_data.append((read_ts, read.usage/(5/60)))
+        load_data.append((read_ts, read.usage / (5 / 60)))
     chartdata['consumption'] = {
         'label': 'General',
         'color': '#FFA500',
@@ -251,7 +428,7 @@ def energy_data(meter_id, start, end):
     for read in split_reads:
         if read.usage:
             read_ts = pytz.utc.localize(read.end).timestamp() * 1000
-            load_data.append((read_ts, read.usage/(5/60)))
+            load_data.append((read_ts, read.usage / (5 / 60)))
     chartdata['controlled'] = {
         'label': 'Controlled Load',
         'color': '#FAB57F',
@@ -266,7 +443,7 @@ def energy_data(meter_id, start, end):
     split_reads = group_into_profiled_intervals(reads, interval_m=5)
     for read in split_reads:
         read_ts = pytz.utc.localize(read.end).timestamp() * 1000
-        load_data.append((read_ts, -read.usage/(5/60)))
+        load_data.append((read_ts, -read.usage / (5 / 60)))
     chartdata['generation'] = {
         'label': 'Generation',
         'color': '#006400',
@@ -327,7 +504,12 @@ def month_day_data(meter_id, year, month):
         'color': '#006400',
         'data': generation_data,
     }
-    json_data = {'dailies': day_data, 'consumption': consumption, 'controlled': controlled, 'generation': generation}
+    json_data = {
+        'dailies': day_data,
+        'consumption': consumption,
+        'controlled': controlled,
+        'generation': generation
+    }
     return jsonify(json_data)
 
 
@@ -382,6 +564,7 @@ def usage_monthly(meter_id, year, month):
     next_month = rpt_start + relativedelta(months=1)
     if next_month > last_record:
         next_month = None
+    fin_yr = get_financial_year(rpt_start)
 
     mth = monthly_bill_data(meter_id, rpt_start.year, rpt_start.month)
 
@@ -398,6 +581,7 @@ def usage_monthly(meter_id, year, month):
         end_date=rpt_end.strftime("%Y-%m-%d"),
         mth=mth,
         daily_reads=daily_reads,
+        fin_yr=fin_yr,
         prev_month=prev_month,
         next_month=next_month)
 

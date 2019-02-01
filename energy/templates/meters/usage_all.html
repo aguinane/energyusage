@@ -1,0 +1,255 @@
+{% extends "layout.html" %}
+{% set active_page = active_page|default('meters') -%}
+{% block title %}Energy Usage - {{meter_name}}{% endblock %}
+{% block container %}
+<h1 class="page-header">Energy Usage <small>{{meter_name}}</small></h1>
+
+
+<div class="card-deck">
+    <div class="card">
+        <div class="card-body">
+            <div class="chart-container">
+                <img id="chart-loading" src="{{ url_for('static', filename='img/loading_icon.gif') }}" style="position: absolute; visibility:visible" />
+                <div id="load" class="chart-placeholder" style="max-width: 100%; height: 150px;"></div>
+            </div>
+            <figcaption class="figure-caption">
+                Average Daily Usage (kWh/day)
+            </figcaption>
+        </div><!-- /card-body-->
+    </div><!-- /card-->
+
+</div><!-- /card-deck-->
+
+<h2>Yearly Summaries</h2>
+<div class="card-deck">
+    <div class="card">
+        <div class="card-body">
+
+            {% for fy in fys %}
+            <a class="btn btn-primary" role="button" href="{{url_for('meters.usage_fy', meter_id=meter_id, fin_year=fy) }}">{{fy}}</a>
+            {% endfor %}
+        </div><!-- /card-body-->
+    </div><!-- /card-->
+
+</div><!-- /card-deck-->
+
+
+<h2>Usage Stats</h2>
+<p>Usage stats are for the most recent 12 mths of energy data.</p>
+<div class="card-deck">
+    <div class="card">
+        <div class="card-body" id="day_avgs">
+
+            <div class="container">
+                <div class="row">
+                    <div class="col-sm">
+                        <table class="table table-sm table-striped">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Day</th>
+                                    <th>Avg General Supply Load</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Mon</td>
+                                    <td>{% raw %}{{ day_avgs.Mon.toFixed(2) }}{% endraw %}</td>
+                                </tr>
+                                <tr>
+                                    <td>Tue</td>
+                                    <td>{% raw %}{{ day_avgs.Tue.toFixed(2) }}{% endraw %}</td>
+                                </tr>
+                                <tr>
+                                    <td>Wed</td>
+                                    <td>{% raw %}{{ day_avgs.Wed.toFixed(2) }}{% endraw %}</td>
+                                </tr>
+                                <tr>
+                                    <td>Thu</td>
+                                    <td>{% raw %}{{ day_avgs.Thu.toFixed(2) }}{% endraw %}</td>
+                                </tr>
+                                <tr>
+                                    <td>Fri</td>
+                                    <td>{% raw %}{{ day_avgs.Fri.toFixed(2) }}{% endraw %}</td>
+                                </tr>
+                                <tr>
+                                    <td>Sat</td>
+                                    <td>{% raw %}{{ day_avgs.Sat.toFixed(2) }}{% endraw %}</td>
+                                </tr>
+                                <tr>
+                                    <td>Sun</td>
+                                    <td>{% raw %}{{ day_avgs.Sun.toFixed(2) }}{% endraw %}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div><!-- /col-->
+                    <div class="col-sm">
+
+                        <table class="table table-sm table-striped">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Day</th>
+                                    <th>Avg General Supply Load</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Weekdays</td>
+                                    <td>{% raw %}{{ day_avgs.weekdays.toFixed(2) }}{% endraw %}</td>
+                                </tr>
+                                <tr>
+                                    <td>Weekends</td>
+                                    <td>{% raw %}{{ day_avgs.weekends.toFixed(2) }}{% endraw %}</td>
+                                </tr>
+
+                            </tbody>
+                        </table>
+
+                    </div><!-- /col-->
+
+
+
+                </div><!-- /row-->
+
+            </div><!-- /container-->
+
+        </div>
+
+
+        <script>
+
+            var dataURL = 'stats.json';
+            var app = new Vue({
+                el: '#day_avgs',
+                data: {
+                    day_avgs: []
+                },
+                mounted: function () { // when the Vue app is booted up, this is run automatically.
+                    var self = this; // create a closure to access component in the callback below
+                    $.ajax({
+                        dataType: "json",
+                        url: dataURL,
+                        success: onDataReceived
+                    });
+                    function onDataReceived(data) {
+                        self.day_avgs = data.day_avgs;
+                    };
+                }
+            });
+
+        </script>
+
+
+    </div><!-- /card-body-->
+</div><!-- /card-->
+
+</div><!-- /card-deck-->
+<!-- Flot code - load json into chart div-->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/flot/0.8.3/jquery.flot.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/flot/0.8.3/jquery.flot.time.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/flot/0.8.3/jquery.flot.stack.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/flot/0.8.3/jquery.flot.selection.min.js"></script>
+
+<script>
+
+    var plotarea = $("#load");
+
+    var plotoptions = {
+        series: { stack: true },
+        grid: {
+            hoverable: true,
+            clickable: true,
+        },
+        legend: {
+            position: "ne",
+        },
+        xaxis: {
+            mode: "time",
+            timeformat: "%b %y",
+            minTickSize: [1, "month"]
+        },
+        bars: {
+            show: true,
+            fill: true,
+            align: 'right',
+            barWidth: 30 * 24 * 60 * 60 * 1000
+        }
+    };
+
+    var plotdata = [];
+
+    // Show point values on mouseover
+    function showTooltip(x, y, contents) {
+
+        $('<div id="tooltip">' + contents + '</div>').css({
+            position: 'absolute',
+            display: 'none',
+            top: y + 5,
+            left: x + 5,
+            border: '1px solid #fdd',
+            padding: '2px',
+            'background-color': '#fee',
+            opacity: 0.80
+        }).appendTo("body").fadeIn(200);
+    };
+
+    function populateTooltip(event, pos, item) {
+        $("#x").text(pos.x.toFixed(2));
+        $("#y").text(pos.y.toFixed(2));
+
+        if (item) {
+            if (previousPoint != item.dataIndex) {
+                previousPoint = item.dataIndex;
+
+                $("#tooltip").remove();
+                var x = new Date(item.datapoint[0]);
+                var xstr = x.getUTCFullYear() + '-' + (x.getUTCMonth() + 1) + '-' + x.getUTCDate();
+                var y = item.datapoint[1].toFixed(2);
+                showTooltip(item.pageX, item.pageY,
+                    "<strong>" + item.series.label + ":</strong> "
+                    + y + " [" + xstr + "]");
+            }
+        }
+        else {
+            $("#tooltip").remove();
+            previousPoint = null;
+        }
+
+    }
+
+    var previousPoint = null;
+    plotarea.bind("plothover", populateTooltip);
+
+    $(document).ready(function () {
+
+        $.plot(plotarea, plotdata, plotoptions);
+
+        $.ajax({
+            url: "{{url_for('meters.monthly_data', meter_id=meter_id) }}",
+            type: "GET",
+            dataType: "json",
+            success: onDataReceived,
+            error: function (XMLHttpRequest, textStatus, errorThrown) {
+                alert("Unable to load usage chart " + errorThrown);
+            }
+        });
+
+        function onDataReceived(data) {
+            // Push the new data onto our existing data array
+            plotdata.push(data.consumption);
+            $.plot(plotarea, plotdata, plotoptions);
+
+            // hide loading image when done plotting
+            var spinner = document.getElementById('chart-loading');
+            spinner.style.visibility = 'hidden';
+        }
+
+    });
+
+
+
+</script>
+
+
+
+
+{% endblock container%}
