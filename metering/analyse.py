@@ -1,18 +1,19 @@
 """
-    metering.loader
+    metering.analyse
     ~~~~~~~~~
-    Define the meter data models
+    Summarise stats up to daily and monthly totals
 """
 
 import logging
 from datetime import datetime, timedelta
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from statistics import mean
 from dateutil.relativedelta import relativedelta
 from qldtariffs import get_daily_usages
 from qldtariffs import financial_year_starting
 from sqlalchemy.orm import sessionmaker
 from . import get_db_engine
+from . import Dailies
 from . import get_data_range
 from . import get_load_energy_readings
 from . import get_daily_energy_readings
@@ -24,15 +25,22 @@ CONTROL_CHS = ['E2', '41']
 GENERATION_CHS = ['B1', '71']
 
 
-def refresh_daily_stats(meter_id):
+def refresh_daily_stats(meter_id: int,
+                        start: Optional[datetime] = None,
+                        end: Optional[datetime] = None):
     """ Update the daily totals after loading new readings """
 
-    logging.info('Calculating daily stats for meter %s', meter_id)
     engine = get_db_engine(meter_id)
     Session = sessionmaker(bind=engine)
     session = Session()
 
-    start, end = get_data_range(meter_id)
+    # Get start and end of available data
+    if not start or not end:
+        start, end = get_data_range(meter_id)
+
+    msg = f'Calculating daily stats for meter {meter_id}'
+    msg += f' from {start.strftime("%Y%m%d")} to {end.strftime("%Y%m%d")}'
+    logging.info(msg)
 
     # Get General Consumption Stats
     records = list(
@@ -53,6 +61,13 @@ def refresh_daily_stats(meter_id):
     daily_generation = list(get_daily_usages(records))
 
     for i, day_ergon in enumerate(daily_ergon):
+
+        day = day_ergon.day
+        load_total = day_ergon.total
+        load_peak = day_ergon.peak
+        load_shoulder = day_ergon.shoulder
+        load_peak2 = daily_seq[i].peak
+        load_shoulder2 = daily_seq[i].shoulder
         # See if Control and Generation Channels exist
         try:
             controlled_total = daily_control[i].total
@@ -63,10 +78,22 @@ def refresh_daily_stats(meter_id):
         except IndexError:
             generation_total = 0
 
-        update_daily_total(session, day_ergon.day, day_ergon.total,
-                           controlled_total, generation_total, day_ergon.peak,
-                           day_ergon.shoulder, daily_seq[i].peak,
-                           daily_seq[i].shoulder)
+        update_daily_total(session, day, load_total, controlled_total,
+                           generation_total, load_peak, load_shoulder,
+                           load_peak2, load_shoulder2)
+    session.commit()
+
+    # Estimate values to complete the month
+    next_month = datetime(end.year, end.month, 1) + relativedelta(months=1)
+    est_day = end
+    while est_day < next_month:
+        # Update with estimate if not already populated
+        r = session.query(Dailies).filter(Dailies.day == day).first()
+        if r is None:
+            update_daily_total(session, est_day, load_total, controlled_total,
+                               generation_total, load_peak, load_shoulder,
+                               load_peak2, load_shoulder2, estimated=True)
+        est_day += timedelta(days=1)
     session.commit()
 
 

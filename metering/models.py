@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from typing import Tuple, List
 from sqlalchemy import create_engine
 from sqlalchemy import func
-from sqlalchemy import Column, String, DateTime, Float, Integer
+from sqlalchemy import Column, String, DateTime, Float, Integer, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from energy_shaper import group_into_profiled_intervals
@@ -110,6 +110,7 @@ class Dailies(Base):
     # SEQ Peak Times
     load_peak2 = Column(Float)
     load_shoulder2 = Column(Float)
+    estimated = Column(Boolean)
 
     @property
     def weekday(self) -> bool:
@@ -136,7 +137,8 @@ def get_daily_energy_readings(meter_id, read_start: datetime,
 
 
 def update_daily_total(session, day, load_total, control_total, export_total,
-                       load_peak1, load_shoulder1, load_peak2, load_shoulder2):
+                       load_peak1, load_shoulder1, load_peak2, load_shoulder2,
+                       estimated: bool = False):
     """ Save reading to database """
 
     # Check existing records
@@ -150,7 +152,8 @@ def update_daily_total(session, day, load_total, control_total, export_total,
             load_peak1=load_peak1,
             load_shoulder1=load_shoulder1,
             load_peak2=load_peak2,
-            load_shoulder2=load_shoulder2)
+            load_shoulder2=load_shoulder2,
+            estimated=estimated)
         session.add(daily)
     else:
         r.load_total = load_total
@@ -160,6 +163,7 @@ def update_daily_total(session, day, load_total, control_total, export_total,
         r.load_shoulder1 = load_shoulder1
         r.load_peak2 = load_peak2
         r.load_shoulder2 = load_shoulder2
+        r.estimated = estimated
 
 
 class Monthlies(Base):

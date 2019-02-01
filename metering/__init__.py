@@ -21,3 +21,5 @@ from metering.analyse import refresh_monthly_stats
 from metering.analyse import LOAD_CHS, CONTROL_CHS, GENERATION_CHS
 
 from metering.loader import load_nem_data
+
+from metering.stats import get_day_of_week_avg
