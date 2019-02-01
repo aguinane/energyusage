@@ -2,20 +2,36 @@
 {% set active_page = active_page|default('homepage') -%}
 {% block title %}Energy Usage{% endblock %}
 {% block container %}
-<h1 class="page-header">Home</h1>
 
-<p>If you have access to interval data from your smart meter, you can use this website to upload it and perform
-    analysis.
-    Currently you can just compare prices under different tariffs, but more features will be added eventually.
-</p>
 
-<p>Click on the <a href="{{ url_for('meters.index') }}">meters</a> page to upload your data or look at other people's
-    data.
-</p>
+<ul class="list-group list-group-flush">
+    <li class="list-group-item">
+        <h5 class="mb-1">Obtain Smart Meter Usage Data</h5>
+        <p>First, request your interval data from
+            <a target="_new" href="https://www.ergon.com.au/network/connections/metering/accessing-your-metering-data">Ergon</a>
+            and
+            <a target="_new" href="https://www.energex.com.au/home/our-services/meters/accessing-your-metering-data">Energex</a>
+        </p>
+    </li>
+    <li class="list-group-item">
+        <h5 class="mb-1">Upload Data</h5>
+        <p>Go to the <a href="{{ url_for('meters.index') }}">meters</a> page to upload your data.
+        </p>
 
-<p>Example of daily interval load profile:<br />
-    <img src="{{ url_for('static', filename='img/screenshot_daily.png') }}" class="img-thumbnail" alt="Screenshot">
-</p>
+    </li>
+    <li class="list-group-item">
+        <h5 class="mb-1">View Charts of Usage</h5>
+        <img src="{{ url_for('static', filename='img/screenshot_day.png') }}" class="img-thumbnail" alt="Day Usage">
+        <img src="{{ url_for('static', filename='img/screenshot_month.png') }}" class="img-thumbnail" alt="Month Usage">
+    </li>
+    <li class="list-group-item">
+        <h5 class="mb-1">Compare Prices for Different Tariffs</h5>
+        <img src="{{ url_for('static', filename='img/screenshot_month_tariff.png') }}" class="img-thumbnail" alt="Month Tariff">
+    </li>
+
+</ul>
+
+
 
 
 {% endblock container%}

@@ -3,9 +3,6 @@
 
 Provide analysis and charting of energy usage
 
-[🔗 Site Link](http://aguinane.pythonanywhere.com/)
-
-
 ## Run yourself
 
 To run the website:
