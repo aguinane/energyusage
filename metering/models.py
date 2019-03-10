@@ -15,7 +15,6 @@ from sqlalchemy.orm import sessionmaker
 from energy_shaper import group_into_profiled_intervals
 import calendar
 
-
 # Initialize the database
 Base = declarative_base()
 
@@ -75,9 +74,10 @@ def save_energy_reading(session, ch_name, read_start: datetime,
     session.add(read)
 
 
-def get_load_energy_readings(meter_id, read_start: datetime,
+def get_load_energy_readings(meter_id,
+                             read_start: datetime,
                              read_end: datetime,
-                             channels: List[str] =['E1', '11']):
+                             channels: List[str] = ['E1', '11']):
     """ Get energy readings """
 
     engine = get_db_engine(meter_id)
@@ -136,8 +136,15 @@ def get_daily_energy_readings(meter_id, read_start: datetime,
     return res
 
 
-def update_daily_total(session, day, load_total, control_total, export_total,
-                       load_peak1, load_shoulder1, load_peak2, load_shoulder2,
+def update_daily_total(session,
+                       day,
+                       load_total,
+                       control_total,
+                       export_total,
+                       load_peak1,
+                       load_shoulder1,
+                       load_peak2,
+                       load_shoulder2,
                        estimated: bool = False):
     """ Save reading to database """
 
@@ -262,3 +269,37 @@ def update_monthly_total(session, year, month, num_days, load_total,
         r.load_shoulder1 = load_shoulder1
         r.load_peak2 = load_peak2
         r.load_shoulder2 = load_shoulder2
+
+
+class DailySegments(Base):
+    __tablename__ = 'daily_segments'
+
+    day = Column(DateTime, primary_key=True)
+    # Time of Day Totals
+    a = Column(Float)
+    b = Column(Float)
+    c = Column(Float)
+    d = Column(Float)
+    e = Column(Float)
+    f = Column(Float)
+    g = Column(Float)
+    h = Column(Float)
+
+
+def update_daily_segments(session, day, a, b, c, d, e, f, g, h):
+    """ Save reading to database """
+
+    # Check existing records
+    r = session.query(DailySegments).filter(DailySegments.day == day).first()
+    if r is None:
+        daily = DailySegments(day=day, a=a, b=b, c=c, d=d, e=e, f=f, g=g, h=h)
+        session.add(daily)
+    else:
+        r.a = a
+        r.b = b
+        r.c = c
+        r.d = d
+        r.e = e
+        r.f = f
+        r.g = g
+        r.h = h

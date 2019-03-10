@@ -1,8 +1,11 @@
 import os
 import logging
 import click
-from metering import refresh_daily_stats, refresh_monthly_stats
+from metering import refresh_daily_stats
+from metering import refresh_monthly_stats
+from metering import refresh_daily_segments
 from config import UPLOAD_FOLDER, DATABASE
+
 
 @click.group()
 def cli():
@@ -12,7 +15,6 @@ def cli():
 @cli.command()
 def first_run():
     click.echo('Creating data directories')
-
     """ Set up files and folders on first run """
     if not os.path.exists('logs'):
         logging.info('Creating logs folder')
@@ -37,11 +39,15 @@ def first_run():
 
     click.echo('Done!')
 
+
 @cli.command()
 @click.option('--meterid', default=1, help='The meter ID')
 def update_metering(meterid):
-    click.echo('Refreshing daily and monthly stats for %s', meterid)
-    refresh_daily_stats(meterid)
+    click.echo(f'Refreshing daily stats for {meterid}')
+    #refresh_daily_stats(meterid)
+    click.echo(f'Refreshing daily segments for {meterid}')
+    refresh_daily_segments(meterid)
+    click.echo(f'Refreshing monthly stats for {meterid}')
     refresh_monthly_stats(meterid)
     click.echo('Done!')
 
