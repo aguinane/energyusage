@@ -1,6 +1,6 @@
 flask>=0.12
 flask_wtf>=0.14
-flask_sqlalchemy==2.3.2
+flask_sqlalchemy==2.4.0
 flask_login>=0.4
 arrow>=0.10
 sqlalchemy>=1.2
