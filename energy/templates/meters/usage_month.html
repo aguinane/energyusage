@@ -21,14 +21,16 @@
             <div class="btn-group btn-group-sm" role="group">
 
                 {% if prev_month %}
-                <a class="btn btn-primary" href="{{ url_for('meters.usage_monthly', meter_id=meter_id, year=prev_month.year, month=prev_month.month) }}"
+                <a class="btn btn-primary"
+                    href="{{ url_for('meters.usage_monthly', meter_id=meter_id, year=prev_month.year, month=prev_month.month) }}"
                     role="button">⏮️</a>
                 {% else %}
                 <a class="btn btn-primary disabled" href="#" role="button">⏮️</a>
                 {% endif %}
 
                 {% if next_month %}
-                <a class="btn btn-primary" href="{{ url_for('meters.usage_monthly', meter_id=meter_id, year=next_month.year, month=next_month.month) }}"
+                <a class="btn btn-primary"
+                    href="{{ url_for('meters.usage_monthly', meter_id=meter_id, year=next_month.year, month=next_month.month) }}"
                     role="button">⏭️</a>
                 {% else %}
                 <a class="btn btn-primary disabled" href="#" role="button">⏭️</a>
@@ -43,7 +45,8 @@
 <div class="card">
     <div class="card-body">
         <div class="chart-container">
-            <img id="chart-loading" src="{{ url_for('static', filename='img/loading_icon.gif') }}" style="position: absolute; visibility:visible" />
+            <img id="chart-loading" src="{{ url_for('static', filename='img/loading_icon.gif') }}"
+                style="position: absolute; visibility:visible" />
             <div id="load" class="chart-placeholder" style="max-width: 100%; height: 150px;"></div>
         </div>
         <figcaption class="figure-caption">Daily Usage (kWh)
@@ -146,7 +149,8 @@
 
             <tr>
                 <td>Off-Peak Consumption</td>
-                <td>{{ (mth.load_offpeak1)|round(2) }} kWh <br /><small>SEQ: {{ (mth.load_offpeak2)|round(2) }}</small></td>
+                <td>{{ (mth.load_offpeak1)|round(2) }} kWh <br /><small>SEQ: {{ (mth.load_offpeak2)|round(2) }}</small>
+                </td>
                 <td>-</td>
                 <td>${{ (mth.ergon_t12.offpeak.cost_incl_gst/100)|round(2) }}</td>
                 <td>-</td>
@@ -170,12 +174,18 @@
                 <td>Savings <small>to Ergon T11</small></td>
                 <td></td>
                 <td> - </td>
-                <td>${{ (mth.ergon_t11.total_charges.cost_incl_gst/100-mth.ergon_t12.total_charges.cost_incl_gst/100)|round(2) }}</td>
-                <td>${{ (mth.ergon_t11.total_charges.cost_incl_gst/100-mth.ergon_t14.total_charges.cost_incl_gst/100)|round(2) }}</td>
-                <td>${{ (mth.ergon_t11.total_charges.cost_incl_gst/100-mth.agl_t11.total_charges.cost_incl_gst/100)|round(2) }}</td>
-                <td>${{ (mth.ergon_t11.total_charges.cost_incl_gst/100-mth.agl_t12.total_charges.cost_incl_gst/100)|round(2) }}</td>
-                <td>${{ (mth.ergon_t11.total_charges.cost_incl_gst/100-mth.origin_t11.total_charges.cost_incl_gst/100)|round(2) }}</td>
-                <td>${{ (mth.ergon_t11.total_charges.cost_incl_gst/100-mth.origin_t12.total_charges.cost_incl_gst/100)|round(2) }}</td>
+                <td>${{ (mth.ergon_t11.total_charges.cost_incl_gst/100-mth.ergon_t12.total_charges.cost_incl_gst/100)|round(2) }}
+                </td>
+                <td>${{ (mth.ergon_t11.total_charges.cost_incl_gst/100-mth.ergon_t14.total_charges.cost_incl_gst/100)|round(2) }}
+                </td>
+                <td>${{ (mth.ergon_t11.total_charges.cost_incl_gst/100-mth.agl_t11.total_charges.cost_incl_gst/100)|round(2) }}
+                </td>
+                <td>${{ (mth.ergon_t11.total_charges.cost_incl_gst/100-mth.agl_t12.total_charges.cost_incl_gst/100)|round(2) }}
+                </td>
+                <td>${{ (mth.ergon_t11.total_charges.cost_incl_gst/100-mth.origin_t11.total_charges.cost_incl_gst/100)|round(2) }}
+                </td>
+                <td>${{ (mth.ergon_t11.total_charges.cost_incl_gst/100-mth.origin_t12.total_charges.cost_incl_gst/100)|round(2) }}
+                </td>
             </tr>
 
         </tbody>
@@ -195,7 +205,10 @@
             </tr>
         </thead>
         <tbody>
-            <tr>
+            <tr v-for="daily in dailies">
+                <td>{% raw %}{{ daily.day }}{% endraw %}
+                    <a v-bind:href="daily.day_url">📈</a>
+                </td>
                 <td>{% raw %}{{ daily.load_total.toFixed(2) }}{% endraw %}</td>
                 <td>{% raw %}{{ daily.control_total.toFixed(2) }}{% endraw %}</td>
                 <td>{% raw %}{{ daily.export_total.toFixed(2) }}{% endraw %}</td>
