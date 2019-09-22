@@ -226,7 +226,7 @@ def monthly_totals(meter_id):
     for year, month, _ in get_month_ranges(start, end):
 
         day_dt = datetime(year, month, 1)
-        day_ts = pytz.utc.localize(day_dt).timestamp() * 1000
+        day_ts = f'{day_dt:%Y %b}'  # day_dt.isoformat()
         mth = get_monthly_energy_readings(meter_id, year, month)
         daily_load = mth.load_total / mth.num_days
         load_data.append((day_ts, daily_load))
@@ -340,15 +340,29 @@ def monthly_bills(meter_id, fin_year):
             'meters.usage_monthly', meter_id=meter_id, year=year, month=month
         )
 
-        fy_totals['ergon_t11'] = fy_totals['ergon_t11'] + mth['ergon_t11'].total_charges.cost_incl_gst
-        fy_totals['ergon_t12'] = fy_totals['ergon_t12'] + mth['ergon_t12'].total_charges.cost_incl_gst
-        fy_totals['ergon_t14'] = fy_totals['ergon_t14'] + mth['ergon_t14'].total_charges.cost_incl_gst
+        fy_totals['ergon_t11'] = (
+            fy_totals['ergon_t11'] + mth['ergon_t11'].total_charges.cost_incl_gst
+        )
+        fy_totals['ergon_t12'] = (
+            fy_totals['ergon_t12'] + mth['ergon_t12'].total_charges.cost_incl_gst
+        )
+        fy_totals['ergon_t14'] = (
+            fy_totals['ergon_t14'] + mth['ergon_t14'].total_charges.cost_incl_gst
+        )
 
-        fy_totals['agl_t11'] = fy_totals['agl_t11'] + mth['agl_t11'].total_charges.cost_incl_gst
-        fy_totals['agl_t12'] = fy_totals['agl_t12'] + mth['agl_t12'].total_charges.cost_incl_gst
+        fy_totals['agl_t11'] = (
+            fy_totals['agl_t11'] + mth['agl_t11'].total_charges.cost_incl_gst
+        )
+        fy_totals['agl_t12'] = (
+            fy_totals['agl_t12'] + mth['agl_t12'].total_charges.cost_incl_gst
+        )
 
-        fy_totals['origin_t11'] = fy_totals['origin_t11'] + mth['origin_t11'].total_charges.cost_incl_gst
-        fy_totals['origin_t12'] = fy_totals['origin_t12'] + mth['origin_t12'].total_charges.cost_incl_gst
+        fy_totals['origin_t11'] = (
+            fy_totals['origin_t11'] + mth['origin_t11'].total_charges.cost_incl_gst
+        )
+        fy_totals['origin_t12'] = (
+            fy_totals['origin_t12'] + mth['origin_t12'].total_charges.cost_incl_gst
+        )
 
         month_data.append(mth)
 
