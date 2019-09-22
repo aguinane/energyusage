@@ -23,7 +23,7 @@ from .models import get_user_meters, get_public_meters, visible_meters
 from .forms import UsernamePasswordForm, FileForm, NewMeter, MeterDetails
 from .charts import get_daily_chart_data, get_monthly_chart_data
 from .charts import get_interval_chart_data
-from .charts import monthly_bill_data
+
 from .usage import average_daily_peak_demand
 
 
@@ -142,20 +142,6 @@ def signin():
 def signout():
     logout_user()
     return redirect(url_for('index'))
-
-
-
-
-@app.route('/meter/<int:meter_id>/<int:year>/<int:month>/monthly.json')
-def monthly_bill(meter_id: int, year: int, month: int):
-    # Get user details
-    user_id, user_name = get_user_details()
-    visible, editable = check_meter_permissions(user_id, meter_id)
-    if not visible:
-        return 'Not authorised to view this page', 403
-    """ Return the monthly bill costs as json """
-    month_bill = monthly_bill_data(meter_id, year, month)
-    return jsonify(month_bill)
 
 
 

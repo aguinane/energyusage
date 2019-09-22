@@ -206,8 +206,9 @@
         </thead>
         <tbody>
             <tr v-for="daily in dailies">
-                <td>{% raw %}{{ daily.day }}{% endraw %}
+                <td>
                     <a v-bind:href="daily.day_url">📈</a>
+                    {% raw %}{{ daily.day }}{% endraw %}
                 </td>
                 <td>{% raw %}{{ daily.load_total.toFixed(2) }}{% endraw %}</td>
                 <td>{% raw %}{{ daily.control_total.toFixed(2) }}{% endraw %}</td>

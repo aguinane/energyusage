@@ -22,40 +22,73 @@ def monthly_bill_data(meter_id: int, year: int, month: int):
     fy = str(financial_year_starting(month_start))
 
     mth = get_monthly_energy_readings(meter_id, year, month)
-    offpeak1 = mth.load_total - mth.load_peak1
-    offpeak2 = mth.load_total - mth.load_peak2 - mth.load_shoulder2
-    t11 = electricity_charges_general('ergon', mth.num_days, mth.load_total, fy)
-    t12 = electricity_charges_tou(
-        'ergon', mth.num_days, mth.load_peak1, 0, offpeak1, fy)
+    if mth:
+        num_days = mth.num_days
+        load_total = mth.load_total
+        load_peak1 = mth.load_peak1
+        load_peak2 = mth.load_peak2
+        load_shoulder1 = mth.load_shoulder1
+        load_shoulder2 = mth.load_shoulder2
+        control_total = mth.control_total
+        export_total = mth.export_total
+        demand = mth.demand
+    else:
+        num_days = 0
+        load_total = 0
+        load_peak1 = 0
+        load_peak2 = 0
+        load_shoulder1 = 0
+        load_shoulder2 = 0
+        control_total = 0
+        export_total = 0
+        demand = 0
+
+    offpeak1 = load_total - load_peak1
+    offpeak2 = load_total - load_peak2 - load_shoulder2
+
+    t11 = electricity_charges_general('ergon', num_days, load_total, fy)
+    t12 = electricity_charges_tou('ergon', num_days, load_peak1, 0, offpeak1, fy)
     if month in [12, 1, 2]:
         peak_month = True
     else:
         peak_month = False
     t14 = electricity_charges_tou_demand(
-        'ergon', mth.num_days, mth.load_total, mth.demand, fy, peak_month)
+        'ergon', num_days, load_total, demand, fy, peak_month
+    )
 
-    agl_t11 = electricity_charges_general('agl', mth.num_days, mth.load_total, fy)
+    agl_t11 = electricity_charges_general('agl', num_days, load_total, fy)
     agl_t12 = electricity_charges_tou(
-        'agl', mth.num_days, mth.load_peak2, mth.load_shoulder2, offpeak2, fy)
-    origin_t11 = electricity_charges_general('origin', mth.num_days, mth.load_total, fy)
+        'agl', num_days, load_peak2, load_shoulder2, offpeak2, fy
+    )
+    origin_t11 = electricity_charges_general('origin', num_days, load_total, fy)
     origin_t12 = electricity_charges_tou(
-        'origin', mth.num_days, mth.load_peak2, mth.load_shoulder2, offpeak2, fy)
+        'origin', num_days, load_peak2, load_shoulder2, offpeak2, fy
+    )
 
-    return {'year': year, 'month': month, 'period_desc': period_desc,
-            'num_days': mth.num_days, 'peak_month': peak_month,
-            'load_total': mth.load_total, 'control_total': mth.control_total,
-            'export_total': mth.export_total, 
-            'load_peak1': mth.load_peak1,
-            'load_shoulder1': 0,
-            'load_offpeak1': offpeak1,
-            'load_peak2': mth.load_peak2,
-            'load_shoulder2': mth.load_shoulder2,
-            'load_offpeak2': offpeak2,
-            'demand': mth.demand,
-            'ergon_t11': t11, 'ergon_t12': t12, 'ergon_t14': t14,
-            'agl_t11': agl_t11, 'agl_t12': agl_t12,
-            'origin_t11': origin_t11, 'origin_t12': origin_t12,
-            }
+    return {
+        'year': year,
+        'month': month,
+        'period_desc': period_desc,
+        'num_days': num_days,
+        'peak_month': peak_month,
+        'load_total': load_total,
+        'control_total': control_total,
+        'export_total': export_total,
+        'load_peak1': load_peak1,
+        'load_shoulder1': 0,
+        'load_offpeak1': offpeak1,
+        'load_peak2': load_peak2,
+        'load_shoulder2': load_shoulder2,
+        'load_offpeak2': offpeak2,
+        'demand': demand,
+        'ergon_t11': t11,
+        'ergon_t12': t12,
+        'ergon_t14': t14,
+        'agl_t11': agl_t11,
+        'agl_t12': agl_t12,
+        'origin_t11': origin_t11,
+        'origin_t12': origin_t12,
+    }
 
 
 def get_daily_chart_data(meter_id, start_date, end_date):
@@ -98,7 +131,7 @@ def get_monthly_chart_data(meter_id, start_date, end_date):
     chartdata['demand'] = []
 
     start, end = get_data_range(meter_id)
-    
+
     for year, month, _ in get_month_ranges(start, end):
 
         mth = get_monthly_energy_readings(meter_id, year, month)
