@@ -6,6 +6,7 @@ var data = [];
 var layout = {
     showlegend: true,
     bargap: 0.05,
+    barmode: 'relative',
     legend: {
         orientation: 'h',
         x: 0, y: 1.2
@@ -16,16 +17,27 @@ var layout = {
     yaxis: {
         title: 'kWh/day',
     },
+    marker: {
+        line: {
+            width: 1.5
+        }
+    }
 };
 
+
+function onDataSetReceived(data) {
+    onDataReceived(data.consumption);
+    onDataReceived(data.controlled);
+    onDataReceived(data.generation);
+}
 
 function onDataReceived(series) {
     // Push the new data onto our existing data array
 
     var x = [];
     var y = [];
-    for (var i = 0; i < series.consumption.data.length; i++) {
-        row = series.consumption.data[i];
+    for (var i = 0; i < series.data.length; i++) {
+        row = series.data[i];
         xVal = row[0]
         yVal = row[1]
         x.push(xVal);
@@ -36,7 +48,7 @@ function onDataReceived(series) {
         type: 'bar',
         x: x,
         y: y,
-        name: series.consumption.label
+        name: series.label
     };
     if ("color" in series) {
         trace.line = { "color": series.color }
@@ -51,14 +63,13 @@ function onDataReceived(series) {
     // hide loading image when done plotting
     var loadImg = document.getElementById('load-loading');
     loadImg.style.visibility = 'hidden';
-
 }
 
 $.ajax({
     url: "monthly_totals.json",
     type: "GET",
     dataType: "json",
-    success: onDataReceived,
+    success: onDataSetReceived,
     error: function (XMLHttpRequest, textStatus, errorThrown) {
         alert("Error loading monthly totals " + errorThrown);
     }

@@ -6,11 +6,10 @@
 
 
 
+
+<div id="load" style="max-width: 100%; height: 350px;"></div>
 <img id="load-loading" src="{{ url_for('static', filename='img/loading_icon.gif') }}"
     style="position: absolute; visibility:visible" />
-<div id="load" style="max-width: 100%; height: 350px;"></div>
-
-
 
 <h2>Yearly Summaries</h2>
 <div class="card-deck">
@@ -118,7 +117,7 @@
 
 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 <script>
-    {% include 'meters/usage_monthly_overview.js' %}
+    {% include 'meters/chart_monthly_totals.js' %}
 </script>
 
 <script>

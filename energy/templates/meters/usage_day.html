@@ -11,7 +11,8 @@
         </li>
 
         <li class="breadcrumb-item">
-            <a href="{{ url_for('meters.usage_monthly', meter_id=meter_id, year=rpt_start.year, month=rpt_start.month) }}">{{ period_desc[-6:] }}</a>
+            <a
+                href="{{ url_for('meters.usage_monthly', meter_id=meter_id, year=rpt_start.year, month=rpt_start.month) }}">{{ period_desc[-6:] }}</a>
         </li>
         <li class="breadcrumb-item active">
             {{ period_desc }}&nbsp;
@@ -19,14 +20,16 @@
             <div class="btn-group btn-group-sm" role="group">
 
                 {% if prev_day %}
-                <a class="btn btn-primary" href="{{ url_for('meters.usage_daily', meter_id=meter_id, year=prev_day.year, month=prev_day.month, day=prev_day.day) }}"
+                <a class="btn btn-primary"
+                    href="{{ url_for('meters.usage_daily', meter_id=meter_id, year=prev_day.year, month=prev_day.month, day=prev_day.day) }}"
                     role="button">⏮️</a>
                 {% else %}
                 <a class="btn btn-primary disabled" href="#" role="button">⏮️</a>
                 {% endif %}
 
                 {% if next_day %}
-                <a class="btn btn-primary" href="{{ url_for('meters.usage_daily', meter_id=meter_id, year=next_day.year, month=next_day.month, day=next_day.day) }}"
+                <a class="btn btn-primary"
+                    href="{{ url_for('meters.usage_daily', meter_id=meter_id, year=next_day.year, month=next_day.month, day=next_day.day) }}"
                     role="button">⏭️</a>
                 {% else %}
                 <a class="btn btn-primary disabled" href="#" role="button">⏭️</a>
@@ -37,161 +40,17 @@
 
 </nav>
 
-<div class="card">
-    <div class="card-body">
-        <div class="chart-container">
 
-            <img id="chart-loading" src="{{ url_for('static', filename='img/loading_icon.gif') }}" style="position: absolute; visibility:visible" />
-            <div id="load" class="chart-placeholder" style="max-width: 100%; height: 250px;"></div>
-            <figcaption class="figure-caption">5min Load (kW)</figcaption>
-        </div>
-
-        <div class="chart-container">
-
-            <div id="generation" class="chart-placeholder" style="max-width: 100%; height: 150px;"></div>
-            <figcaption class="figure-caption">5min Generation (kW)</figcaption>
-        </div>
-    </div><!-- /card-body-->
-
-</div><!-- /card-->
+<div id="load" style="max-width: 100%; height: 350px;"></div>
+<img id="load-loading" src="{{ url_for('static', filename='img/loading_icon.gif') }}"
+    style="position: absolute; visibility:visible" />
 
 
-<!-- Flot code - load json into chart div-->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/flot/0.8.3/jquery.flot.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/flot/0.8.3/jquery.flot.time.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/flot/0.8.3/jquery.flot.stack.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/flot/0.8.3/jquery.flot.selection.min.js"></script>
-<script language="javascript" type="text/javascript">
-
-
-    var plotarea = $("#load");
-    var plotarea2 = $("#generation");
-    var plotoptions =
-    {
-        series: { stack: true },
-        grid: {
-            hoverable: true,
-            clickable: true,
-            markings: peakTime
-        },
-        legend: {
-            position: "ne",
-        },
-        xaxis: {
-            mode: "time",
-            timezone: null,
-            timeformat: "%H:%M",
-            minTickSize: [1, "hour"]
-        },
-        bars: {
-            show: true,
-            fill: true,
-            align: 'right',
-            barWidth: 5 * 60 * 1000
-        }
-    };
-
-    var plotdata = [];
-    var plotdata2 = [];
-
-    function peakTime(axes) {
-
-        var markings = [],
-            d = new Date(axes.xaxis.min);
-
-        // go to the start of peak period
-        d.setUTCSeconds(0);
-        d.setUTCMinutes(0);
-        d.setUTCHours(15);
-
-        var i = d.getTime();
-
-        // when we don't set yaxis, the rectangle automatically
-        // extends to infinity upwards and downwards
-
-        do {
-            markings.push({
-                xaxis: { from: i, to: i + 6.5 * 60 * 60 * 1000 },
-                color: "#DAA8AA"
-            }
-            );
-            i += 7 * 24 * 60 * 60 * 1000;
-        } while (i < axes.xaxis.max);
-
-        return markings;
-    }
-
-    function showTooltip(x, y, contents) {
-        $('<div id="tooltip">' + contents + '</div>').css({
-            position: 'absolute',
-            display: 'none',
-            top: y + 5,
-            left: x + 5,
-            border: '1px solid #fdd',
-            padding: '2px',
-            'background-color': '#fee',
-            opacity: 0.80
-        }).appendTo("body").fadeIn(200);
-    }
-
-    function populateTooltip(event, pos, item) {
-        $("#x").text(pos.x.toFixed(2));
-        $("#y").text(pos.y.toFixed(2));
-
-        if (item) {
-            if (previousPoint != item.dataIndex) {
-                previousPoint = item.dataIndex;
-
-                $("#tooltip").remove();
-                var x = new Date(item.datapoint[0]);
-                var xstr = x.getUTCFullYear() + '-' + (x.getUTCMonth() + 1) + '-' + x.getUTCDate() +
-                    " " + x.getUTCHours() + ":" + x.getUTCMinutes();
-                var y = item.datapoint[1].toFixed(2);
-                showTooltip(item.pageX, item.pageY,
-                    "<strong>" + item.series.label + ":</strong> "
-                    + y + " [" + xstr + "]");
-            }
-        }
-        else {
-            $("#tooltip").remove();
-            previousPoint = null;
-        }
-
-    }
-
-    var previousPoint = null;
-    plotarea.bind("plothover", populateTooltip);
-    plotarea2.bind("plothover", populateTooltip);
-
-
-    $(document).ready(function () {
-
-        $.plot(plotarea, plotdata, plotoptions);
-
-        $.ajax({
-            url: "{{ url_for('meters.energy_data', meter_id=meter_id, start=start_date, end=end_date)|safe }}",
-            type: "GET",
-            dataType: "json",
-            success: onDataReceived,
-            error: function (XMLHttpRequest, textStatus, errorThrown) {
-                alert("Unable to load usage chart " + errorThrown);
-            }
-        });
-
-        function onDataReceived(data) {
-            // Push the new data onto our existing data array
-            plotdata.push(data.consumption);
-            plotdata.push(data.controlled);
-            plotdata2.push(data.generation);
-            $.plot(plotarea, plotdata, plotoptions);
-            $.plot(plotarea2, plotdata2, plotoptions);
-
-            // hide loading image when done plotting
-            var spinner = document.getElementById('chart-loading');
-            spinner.style.visibility = 'hidden';
-        }
-    });
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script>
+    {% include 'meters/chart_daily_energy.js' %}
 </script>
+
 
 
 {% endblock container%}

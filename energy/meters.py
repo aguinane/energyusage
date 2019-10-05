@@ -223,6 +223,8 @@ def monthly_totals(meter_id):
     start, end = get_data_range(meter_id)
 
     load_data = []
+    control_data = []
+    generation_data = []
     for year, month, _ in get_month_ranges(start, end):
 
         day_dt = datetime(year, month, 1)
@@ -230,9 +232,19 @@ def monthly_totals(meter_id):
         mth = get_monthly_energy_readings(meter_id, year, month)
         daily_load = mth.load_total / mth.num_days
         load_data.append((day_ts, daily_load))
+        daily_control = mth.control_total / mth.num_days
+        control_data.append((day_ts, daily_control))
+        daily_generation = -mth.export_total / mth.num_days
+        generation_data.append((day_ts, daily_generation))
 
     consumption = {'label': "General", 'color': '#FFA500', 'data': load_data}
-    json_data = {'consumption': consumption}
+    controlled = {'label': 'Controlled Load', 'color': '#FAB57F', 'data': control_data}
+    generation = {'label': 'Generation', 'color': '#006400', 'data': generation_data}
+    json_data = {
+        'consumption': consumption,
+        'controlled': controlled,
+        'generation': generation,
+    }
     return jsonify(json_data)
 
 
@@ -276,7 +288,7 @@ def get_financial_year(dt: datetime) -> str:
     return f'{fy_start}-{fy_end[-2:]}'
 
 
-@meters.route('/<int:meter_id>/usage/<fin_year>/')
+@meters.route('/<int:meter_id>/usage_fy/<fin_year>/')
 def usage_fy(meter_id, fin_year):
     """ Get Fin Year usage details """
 
@@ -321,7 +333,7 @@ def usage_fy(meter_id, fin_year):
     )
 
 
-@meters.route('/<int:meter_id>/usage/<fin_year>/monthly_bills.json')
+@meters.route('/<int:meter_id>/usage_fy/<fin_year>/monthly_bills.json')
 def monthly_bills(meter_id, fin_year):
     """ Return the monthly bill costs as json """
     if not meter_visible(meter_id):
@@ -370,7 +382,7 @@ def monthly_bills(meter_id, fin_year):
     return jsonify(json_data)
 
 
-@meters.route('/<int:meter_id>/usage/<fin_year>/daily_totals.json')
+@meters.route('/<int:meter_id>/usage_fy/<fin_year>/daily_totals.json')
 def fy_daily_totals(meter_id, fin_year):
     if not meter_visible(meter_id):
         return 'Not authorised to view this page', 403
@@ -380,11 +392,17 @@ def fy_daily_totals(meter_id, fin_year):
     rpt_start = datetime(fy_start, 7, 1)
     rpt_end = datetime(fy_start + 1, 6, 30)
 
+    json_data = get_daily_totals(meter_id, rpt_start, rpt_end)
+    return jsonify(json_data)
+
+
+def get_daily_totals(meter_id, start, end):
+    """ Get daily total JSON """
     day_data = []
     load_data = []
     control_data = []
     generation_data = []
-    for daily in get_daily_energy_readings(meter_id, rpt_start, rpt_end):
+    for daily in get_daily_energy_readings(meter_id, start, end):
 
         day_url = url_for(
             'meters.usage_daily',
@@ -402,12 +420,11 @@ def fy_daily_totals(meter_id, fin_year):
                 'export_total': daily.export_total,
             }
         )
-        day_end = daily.day + timedelta(days=1)
-        day_ts = pytz.utc.localize(day_end).timestamp() * 1000
+        day_ts = daily.day.strftime("%Y-%m-%d")
         load_data.append((day_ts, daily.load_total))
         if daily.control_total:
             control_data.append((day_ts, daily.control_total))
-        generation_data.append((day_ts, daily.export_total))
+        generation_data.append((day_ts, -daily.export_total))
 
     consumption = {'label': "General", 'color': '#FFA500', 'data': load_data}
     controlled = {'label': 'Controlled Load', 'color': '#FAB57F', 'data': control_data}
@@ -418,10 +435,10 @@ def fy_daily_totals(meter_id, fin_year):
         'controlled': controlled,
         'generation': generation,
     }
-    return jsonify(json_data)
+    return json_data
 
 
-@meters.route('/<int:meter_id>/usage/<int:year>/<int:month>/')
+@meters.route('/<int:meter_id>/usage_mth/<int:year>/<int:month>/')
 def usage_monthly(meter_id, year, month):
     """ Render monthly usage details """
 
@@ -471,7 +488,7 @@ def usage_monthly(meter_id, year, month):
     )
 
 
-@meters.route('/<int:meter_id>/usage/<int:year>/<int:month>/day_summary.json')
+@meters.route('/<int:meter_id>/usage_mth/<int:year>/<int:month>/daily_totals.json')
 def month_day_data(meter_id, year, month):
     if not meter_visible(meter_id):
         return 'Not authorised to view this page', 403
@@ -481,44 +498,7 @@ def month_day_data(meter_id, year, month):
     rpt_end = rpt_start + relativedelta(months=1)
     rpt_end -= timedelta(days=1)  # Remove last day
 
-    day_data = []
-    load_data = []
-    control_data = []
-    generation_data = []
-    for daily in get_daily_energy_readings(meter_id, rpt_start, rpt_end):
-
-        day_url = url_for(
-            'meters.usage_daily',
-            meter_id=meter_id,
-            year=daily.day.year,
-            month=daily.day.month,
-            day=daily.day.day,
-        )
-        day_data.append(
-            {
-                'day': daily.day.strftime("%Y-%m-%d"),
-                'day_url': day_url,
-                'load_total': daily.load_total,
-                'control_total': daily.control_total,
-                'export_total': daily.export_total,
-            }
-        )
-        day_end = daily.day + timedelta(days=1)
-        day_ts = pytz.utc.localize(day_end).timestamp() * 1000
-        load_data.append((day_ts, daily.load_total))
-        if daily.control_total:
-            control_data.append((day_ts, daily.control_total))
-        generation_data.append((day_ts, daily.export_total))
-
-    consumption = {'label': "General", 'color': '#FFA500', 'data': load_data}
-    controlled = {'label': 'Controlled Load', 'color': '#FAB57F', 'data': control_data}
-    generation = {'label': 'Generation', 'color': '#006400', 'data': generation_data}
-    json_data = {
-        'dailies': day_data,
-        'consumption': consumption,
-        'controlled': controlled,
-        'generation': generation,
-    }
+    json_data = get_daily_totals(meter_id, rpt_start, rpt_end)
     return jsonify(json_data)
 
 
@@ -581,7 +561,7 @@ def energy_data(meter_id, start, end):
     )
     split_reads = group_into_profiled_intervals(reads, interval_m=5)
     for read in split_reads:
-        read_ts = pytz.utc.localize(read.end).timestamp() * 1000
+        read_ts = read.end.isoformat()
         load_data.append((read_ts, read.usage / (5 / 60)))
     chartdata['consumption'] = {
         'label': 'General',
@@ -597,7 +577,7 @@ def energy_data(meter_id, start, end):
     split_reads = group_into_profiled_intervals(reads, interval_m=5)
     for read in split_reads:
         if read.usage:
-            read_ts = pytz.utc.localize(read.end).timestamp() * 1000
+            read_ts = read.end.isoformat()
             load_data.append((read_ts, read.usage / (5 / 60)))
     chartdata['controlled'] = {
         'label': 'Controlled Load',
@@ -612,7 +592,7 @@ def energy_data(meter_id, start, end):
     )
     split_reads = group_into_profiled_intervals(reads, interval_m=5)
     for read in split_reads:
-        read_ts = pytz.utc.localize(read.end).timestamp() * 1000
+        read_ts = read.end.isoformat()
         load_data.append((read_ts, -read.usage / (5 / 60)))
     chartdata['generation'] = {
         'label': 'Generation',
