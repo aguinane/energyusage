@@ -1,9 +1,8 @@
 import logging
 import logging.config
-import sys
 import yaml
+import os
 from energy import app
-from energy.views import *
 
 
 def setup_files():

@@ -7,7 +7,7 @@ from metering import get_load_energy_readings
 def average_daily_peak_demand(peak_usage_kWh):
     """ Calculate the average daily peak demand in kW
     """
-    peak_ratio = 1/6.5  # Peak period is 6.5 hrs
+    peak_ratio = 1 / 6.5  # Peak period is 6.5 hrs
     return peak_usage_kWh * peak_ratio
 
 

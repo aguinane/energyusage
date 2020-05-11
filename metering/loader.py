@@ -21,18 +21,17 @@ def load_nem_data(meter_id: int, nmi: str, nem_file):
     Session = sessionmaker(bind=engine)
     session = Session()
 
-    logging.info('Processing NEM file for Meter %s', meter_id)
+    logging.info("Processing NEM file for Meter %s", meter_id)
     m = read_nem_file(nem_file)
     try:
         channels = m.readings[nmi]
     except KeyError:
         first_nmi = list(m.readings.keys())[0]
-        logging.warning('NMI of %s not found, using %s instead', nmi,
-                        first_nmi)
+        logging.warning("NMI of %s not found, using %s instead", nmi, first_nmi)
         channels = m.readings[first_nmi]
 
     for ch_name in channels.keys():
-        logging.info('Loading data for Meter %s Channel %s', meter_id, ch_name)
+        logging.info("Loading data for Meter %s Channel %s", meter_id, ch_name)
         reads = split_into_daily_intervals(channels[ch_name])
         for i, read in enumerate(reads):
             read_start = read[0]
@@ -42,8 +41,9 @@ def load_nem_data(meter_id: int, nmi: str, nem_file):
                 quality_method = read[4]
             except IndexError:
                 quality_method = None
-            save_energy_reading(session, ch_name, read_start, read_end,
-                                read_val, quality_method)
+            save_energy_reading(
+                session, ch_name, read_start, read_end, read_val, quality_method
+            )
 
             if i == 0:
                 first_read = read_start

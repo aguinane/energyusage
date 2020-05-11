@@ -6,7 +6,7 @@ from metering import get_monthly_energy_readings
 from metering import get_data_range, get_month_ranges
 from energy_shaper import split_into_profiled_intervals
 from energy_shaper import group_into_profiled_intervals
-from qldtariffs import financial_year_starting
+from qldtariffs import financial_year_ending
 from qldtariffs import get_daily_charges, get_monthly_charges
 from qldtariffs import electricity_charges_general
 from qldtariffs import electricity_charges_tou
@@ -18,8 +18,8 @@ def monthly_bill_data(meter_id: int, year: int, month: int):
     """ Get billing data for a given month """
 
     month_start = datetime(year, month, 1)
-    period_desc = month_start.strftime('%Y %b')
-    fy = str(financial_year_starting(month_start))
+    period_desc = month_start.strftime("%Y %b")
+    fy = str(financial_year_ending(month_start))
 
     mth = get_monthly_energy_readings(meter_id, year, month)
     if mth:
@@ -46,48 +46,48 @@ def monthly_bill_data(meter_id: int, year: int, month: int):
     offpeak1 = load_total - load_peak1
     offpeak2 = load_total - load_peak2 - load_shoulder2
 
-    t11 = electricity_charges_general('ergon', num_days, load_total, fy)
-    t12 = electricity_charges_tou('ergon', num_days, load_peak1, 0, offpeak1, fy)
+    t11 = electricity_charges_general("ergon", num_days, load_total, fy)
+    t12 = electricity_charges_tou("ergon", num_days, load_peak1, 0, offpeak1, fy)
     if month in [12, 1, 2]:
         peak_month = True
     else:
         peak_month = False
     t14 = electricity_charges_tou_demand(
-        'ergon', num_days, load_total, demand, fy, peak_month
+        "ergon", num_days, load_total, demand, fy, peak_month
     )
 
-    agl_t11 = electricity_charges_general('agl', num_days, load_total, fy)
+    agl_t11 = electricity_charges_general("agl", num_days, load_total, fy)
     agl_t12 = electricity_charges_tou(
-        'agl', num_days, load_peak2, load_shoulder2, offpeak2, fy
+        "agl", num_days, load_peak2, load_shoulder2, offpeak2, fy
     )
-    origin_t11 = electricity_charges_general('origin', num_days, load_total, fy)
+    origin_t11 = electricity_charges_general("origin", num_days, load_total, fy)
     origin_t12 = electricity_charges_tou(
-        'origin', num_days, load_peak2, load_shoulder2, offpeak2, fy
+        "origin", num_days, load_peak2, load_shoulder2, offpeak2, fy
     )
 
     return {
-        'year': year,
-        'month': month,
-        'period_desc': period_desc,
-        'num_days': num_days,
-        'peak_month': peak_month,
-        'load_total': load_total,
-        'control_total': control_total,
-        'export_total': export_total,
-        'load_peak1': load_peak1,
-        'load_shoulder1': 0,
-        'load_offpeak1': offpeak1,
-        'load_peak2': load_peak2,
-        'load_shoulder2': load_shoulder2,
-        'load_offpeak2': offpeak2,
-        'demand': demand,
-        'ergon_t11': t11,
-        'ergon_t12': t12,
-        'ergon_t14': t14,
-        'agl_t11': agl_t11,
-        'agl_t12': agl_t12,
-        'origin_t11': origin_t11,
-        'origin_t12': origin_t12,
+        "year": year,
+        "month": month,
+        "period_desc": period_desc,
+        "num_days": num_days,
+        "peak_month": peak_month,
+        "load_total": load_total,
+        "control_total": control_total,
+        "export_total": export_total,
+        "load_peak1": load_peak1,
+        "load_shoulder1": 0,
+        "load_offpeak1": offpeak1,
+        "load_peak2": load_peak2,
+        "load_shoulder2": load_shoulder2,
+        "load_offpeak2": offpeak2,
+        "demand": demand,
+        "ergon_t11": t11,
+        "ergon_t12": t12,
+        "ergon_t14": t14,
+        "agl_t11": agl_t11,
+        "agl_t12": agl_t12,
+        "origin_t11": origin_t11,
+        "origin_t12": origin_t12,
     }
 
 
@@ -95,10 +95,10 @@ def get_daily_chart_data(meter_id, start_date, end_date):
     """ Return json object for flot chart
     """
     chartdata = {}
-    chartdata['consumption'] = []
-    chartdata['consumption_peak'] = []
-    chartdata['consumption_offpeak'] = []
-    chartdata['demand'] = []
+    chartdata["consumption"] = []
+    chartdata["consumption_peak"] = []
+    chartdata["consumption_offpeak"] = []
+    chartdata["demand"] = []
 
     daily_usages = get_daily_energy_readings(meter_id, start_date, end_date)
     for day in daily_usages:
@@ -113,10 +113,10 @@ def get_daily_chart_data(meter_id, start_date, end_date):
             demand = average_daily_peak_demand(usage_peak)
         else:
             demand = average_daily_peak_demand(usage_shoulder)
-        chartdata['consumption'].append([ts, usage_total])
-        chartdata['consumption_peak'].append([ts, usage_peak])
-        chartdata['consumption_offpeak'].append([ts, usage_offpeak])
-        chartdata['demand'].append([ts, demand])
+        chartdata["consumption"].append([ts, usage_total])
+        chartdata["consumption_peak"].append([ts, usage_peak])
+        chartdata["consumption_offpeak"].append([ts, usage_offpeak])
+        chartdata["demand"].append([ts, demand])
 
     return chartdata
 
@@ -125,10 +125,10 @@ def get_monthly_chart_data(meter_id, start_date, end_date):
     """ Return json object for flot chart
     """
     chartdata = {}
-    chartdata['consumption'] = []
-    chartdata['consumption_peak'] = []
-    chartdata['consumption_offpeak'] = []
-    chartdata['demand'] = []
+    chartdata["consumption"] = []
+    chartdata["consumption_peak"] = []
+    chartdata["consumption_offpeak"] = []
+    chartdata["demand"] = []
 
     start, end = get_data_range(meter_id)
 
@@ -140,8 +140,8 @@ def get_monthly_chart_data(meter_id, start_date, end_date):
         usage_total = mth.load_total
         usage_peak = mth.load_peak1
 
-        chartdata['consumption'].append([ts, usage_total])
-        chartdata['consumption_peak'].append([ts, usage_peak])
+        chartdata["consumption"].append([ts, usage_total])
+        chartdata["consumption_peak"].append([ts, usage_peak])
 
     return chartdata
 
@@ -150,8 +150,8 @@ def get_interval_chart_data(meter_id, start_date, end_date):
     """ Return json object for flot chart
     """
     chartdata = {}
-    chartdata['label'] = 'Energy Profile'
-    chartdata['consumption'] = []
+    chartdata["label"] = "Energy Profile"
+    chartdata["consumption"] = []
 
     reads = list(get_load_energy_readings(meter_id, start_date, end_date))
     split_reads = group_into_profiled_intervals(reads, interval_m=30)
@@ -159,6 +159,6 @@ def get_interval_chart_data(meter_id, start_date, end_date):
         dTime = arrow.get(r[0])
         ts = int(dTime.timestamp * 1000)
         impWh = r[2]
-        chartdata['consumption'].append([ts, impWh])
+        chartdata["consumption"].append([ts, impWh])
 
     return chartdata

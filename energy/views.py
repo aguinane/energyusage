@@ -39,9 +39,9 @@ def get_user_details():
     return user.user_id, user.username
 
 
-@app.route('/')
+@app.route("/")
 def index():
-    return render_template('index.html')
+    return render_template("index.html")
 
 
 def check_meter_permissions(user_id, meter_id):
@@ -60,7 +60,7 @@ def check_meter_permissions(user_id, meter_id):
     return visible, editable
 
 
-@app.route('/new_meter', methods=["GET", "POST"])
+@app.route("/new_meter", methods=["GET", "POST"])
 @login_required
 def new_meter():
     """ Form to create a new meter record """
@@ -68,38 +68,38 @@ def new_meter():
     if form.validate_on_submit():
         user_id, user_name = get_user_details()
         if not user_id:
-            flash('Something went wrong :/', category='error')
-            return redirect(url_for('new_meter'))
+            flash("Something went wrong :/", category="error")
+            return redirect(url_for("new_meter"))
         api_key = str(uuid.uuid4())
         meter = Meter(
             user_id=user_id,
             meter_name=form.meter_name.data.upper().strip(),
             sharing=form.sharing.data,
-            api_key=api_key)
+            api_key=api_key,
+        )
         try:
             db.session.add(meter)
             db.session.commit()
-            flash('New meter created!', category='success')
-            return redirect(url_for('index'))
+            flash("New meter created!", category="success")
+            return redirect(url_for("index"))
         except sqlalchemy.exc.IntegrityError:
-            flash('Sorry, something went wrong :/', category='warning')
-            return redirect(url_for('new_meter'))
-    return render_template('new_meter.html', form=form)
+            flash("Sorry, something went wrong :/", category="warning")
+            return redirect(url_for("new_meter"))
+    return render_template("new_meter.html", form=form)
 
 
-@app.route('/export')
+@app.route("/export")
 @login_required
 def export_data():
     user_id, user_name = get_user_details()
     return Response(
         export_meter_data(user_id),
         mimetype="text/csv",
-        headers={
-            "Content-disposition": "attachment; filename=data-export.csv"
-        })
+        headers={"Content-disposition": "attachment; filename=data-export.csv"},
+    )
 
 
-@app.route('/signup', methods=["GET", "POST"])
+@app.route("/signup", methods=["GET", "POST"])
 def signup():
     form = UsernamePasswordForm()
     if form.validate_on_submit():
@@ -108,41 +108,38 @@ def signup():
         try:
             db.session.add(user)
             db.session.commit()
-            flash('User created!', category='success')
-            return redirect(url_for('index'))
+            flash("User created!", category="success")
+            return redirect(url_for("index"))
         except sqlalchemy.exc.IntegrityError:
-            flash(
-                'Sorry, a user with that name already exists.',
-                category='warning')
-            return redirect(url_for('signup'))
+            flash("Sorry, a user with that name already exists.", category="warning")
+            return redirect(url_for("signup"))
 
-    return render_template('signup.html', form=form)
+    return render_template("signup.html", form=form)
 
 
-@app.route('/signin', methods=["GET", "POST"])
+@app.route("/signin", methods=["GET", "POST"])
 def signin():
     form = UsernamePasswordForm()
     if form.validate_on_submit():
-        user = User.query.filter_by(
-            username=form.username.data.lower()).first()
+        user = User.query.filter_by(username=form.username.data.lower()).first()
         if user is None:
             flash(
-                'No user called {} found!'.format(form.username.data.lower()),
-                category='danger')
-            return redirect(url_for('signin'))
+                "No user called {} found!".format(form.username.data.lower()),
+                category="danger",
+            )
+            return redirect(url_for("signin"))
         if user.check_password(form.password.data):
             login_user(user)
-            return redirect(request.args.get('next') or url_for('index'))
+            return redirect(request.args.get("next") or url_for("index"))
         else:
-            return redirect(url_for('signin'))
-    return render_template('signin.html', form=form)
+            return redirect(url_for("signin"))
+    return render_template("signin.html", form=form)
 
 
-@app.route('/signout')
+@app.route("/signout")
 def signout():
     logout_user()
-    return redirect(url_for('index'))
-
+    return redirect(url_for("index"))
 
 
 def get_billing_months(start_date, end_date):
@@ -163,40 +160,40 @@ def get_billing_months(start_date, end_date):
 
         for j in range(start_month, stop_month + 1):
             month_start = datetime.datetime(i, j, 1)
-            month_start = arrow.get(month_start).format('YYYY-MM-DD')
-            month_desc = arrow.get(month_start).format('MMM YY')
+            month_start = arrow.get(month_start).format("YYYY-MM-DD")
+            month_desc = arrow.get(month_start).format("MMM YY")
             yield month_start, month_desc
 
 
-@app.route('/about/')
+@app.route("/about/")
 def about():
-    return render_template('about.html')
+    return render_template("about.html")
 
 
-@app.route('/daily_data/<meter_id>.json', methods=['POST', 'GET'])
+@app.route("/daily_data/<meter_id>.json", methods=["POST", "GET"])
 def daily_data(meter_id):
     user_id, user_name = get_user_details()
     visible, editable = check_meter_permissions(user_id, meter_id)
     if not visible:
-        return 'Not authorised to view this page', 403
+        return "Not authorised to view this page", 403
 
     params = request.args.to_dict()
-    start_date = arrow.get(params['start_date']).datetime
-    end_date = arrow.get(params['end_date']).replace(days=-1).datetime
+    start_date = arrow.get(params["start_date"]).datetime
+    end_date = arrow.get(params["end_date"]).replace(days=-1).datetime
     flotData = get_daily_chart_data(meter_id, start_date, end_date)
     return jsonify(flotData)
 
 
-@app.route('/monthly_data/<meter_id>.json', methods=['POST', 'GET'])
+@app.route("/monthly_data/<meter_id>.json", methods=["POST", "GET"])
 def monthly_data(meter_id):
     user_id, user_name = get_user_details()
     visible, editable = check_meter_permissions(user_id, meter_id)
     if not visible:
-        return 'Not authorised to view this page', 403
+        return "Not authorised to view this page", 403
 
     params = request.args.to_dict()
-    start_date = arrow.get(params['start_date']).datetime
-    end_date = arrow.get(params['end_date']).replace(days=-1).datetime
+    start_date = arrow.get(params["start_date"]).datetime
+    end_date = arrow.get(params["end_date"]).replace(days=-1).datetime
     flotData = get_monthly_chart_data(meter_id, start_date, end_date)
     return jsonify(flotData)
 
@@ -213,14 +210,14 @@ def get_meter_stats(meter_id):
     return first_record, last_record, num_days
 
 
-def calculate_plot_settings(report_period='day', interval=10):
+def calculate_plot_settings(report_period="day", interval=10):
     # Specify chart settings depending on report period
     plot_settings = dict()
-    plot_settings['barWidth'] = 1000 * 60 * interval
-    if report_period == 'all':
-        plot_settings['minTickSize'] = 'month'
-    elif report_period == 'month':
-        plot_settings['minTickSize'] = 'day'
+    plot_settings["barWidth"] = 1000 * 60 * interval
+    if report_period == "all":
+        plot_settings["minTickSize"] = "month"
+    elif report_period == "month":
+        plot_settings["minTickSize"] = "day"
     else:  # Day
-        plot_settings['minTickSize'] = 'hour'
+        plot_settings["minTickSize"] = "hour"
     return plot_settings

@@ -21,18 +21,18 @@ Base = declarative_base()
 
 def get_db_engine(meter_id):
     """ Create database and return engine """
-    db_name = f'meter_{meter_id}.db'
-    db_dir = 'data'
+    db_name = f"meter_{meter_id}.db"
+    db_dir = "data"
     if not os.path.exists(db_dir):
         os.makedirs(db_dir)
     db_loc = os.path.join(db_dir, db_name)
-    engine = create_engine(f'sqlite:///{db_loc}?check_same_thread=False')
+    engine = create_engine(f"sqlite:///{db_loc}?check_same_thread=False")
     Base.metadata.create_all(engine)
     return engine
 
 
 class Readings(Base):
-    __tablename__ = 'readings'
+    __tablename__ = "readings"
     ch_name = Column(String, primary_key=True)
     read_start = Column(DateTime, primary_key=True)
     read_end = Column(DateTime, primary_key=True)
@@ -52,16 +52,26 @@ def get_data_range(meter_id) -> Tuple[datetime, datetime]:
     return min_date, max_date
 
 
-def save_energy_reading(session, ch_name, read_start: datetime,
-                        read_end: datetime, read_value, quality_method):
+def save_energy_reading(
+    session,
+    ch_name,
+    read_start: datetime,
+    read_end: datetime,
+    read_value,
+    quality_method,
+):
     """ Save reading to database """
 
     # Check existing records
-    r = session.query(Readings).filter(
-        Readings.ch_name == ch_name,
-        Readings.read_start == read_start,
-        Readings.read_end == read_end,
-    ).first()
+    r = (
+        session.query(Readings)
+        .filter(
+            Readings.ch_name == ch_name,
+            Readings.read_start == read_start,
+            Readings.read_end == read_end,
+        )
+        .first()
+    )
     if r is not None:
         return False
 
@@ -70,14 +80,17 @@ def save_energy_reading(session, ch_name, read_start: datetime,
         read_start=read_start,
         read_end=read_end,
         read_value=read_value,
-        quality_method=quality_method)
+        quality_method=quality_method,
+    )
     session.add(read)
 
 
-def get_load_energy_readings(meter_id,
-                             read_start: datetime,
-                             read_end: datetime,
-                             channels: List[str] = ['E1', '11']):
+def get_load_energy_readings(
+    meter_id,
+    read_start: datetime,
+    read_end: datetime,
+    channels: List[str] = ["E1", "11"],
+):
     """ Get energy readings """
 
     engine = get_db_engine(meter_id)
@@ -85,11 +98,15 @@ def get_load_energy_readings(meter_id,
     session = Session()
 
     # Filter existing records
-    res = session.query(Readings).filter(
-        Readings.ch_name.in_(channels),
-        Readings.read_start >= read_start,
-        Readings.read_end <= read_end,
-    ).all()
+    res = (
+        session.query(Readings)
+        .filter(
+            Readings.ch_name.in_(channels),
+            Readings.read_start >= read_start,
+            Readings.read_end <= read_end,
+        )
+        .all()
+    )
     readings = []
     for r in res:
         readings.append((r.read_start, r.read_end, r.read_value))
@@ -97,7 +114,7 @@ def get_load_energy_readings(meter_id,
 
 
 class Dailies(Base):
-    __tablename__ = 'daily_totals'
+    __tablename__ = "daily_totals"
 
     day = Column(DateTime, primary_key=True)
     # Channel Totals
@@ -120,8 +137,7 @@ class Dailies(Base):
         return False
 
 
-def get_daily_energy_readings(meter_id, read_start: datetime,
-                              read_end: datetime):
+def get_daily_energy_readings(meter_id, read_start: datetime, read_end: datetime):
     """ Get energy readings """
 
     engine = get_db_engine(meter_id)
@@ -129,23 +145,26 @@ def get_daily_energy_readings(meter_id, read_start: datetime,
     session = Session()
 
     # Filter existing records
-    res = session.query(Dailies).filter(
-        Dailies.day >= read_start,
-        Dailies.day <= read_end,
-    ).all()
+    res = (
+        session.query(Dailies)
+        .filter(Dailies.day >= read_start, Dailies.day <= read_end,)
+        .all()
+    )
     return res
 
 
-def update_daily_total(session,
-                       day,
-                       load_total,
-                       control_total,
-                       export_total,
-                       load_peak1,
-                       load_shoulder1,
-                       load_peak2,
-                       load_shoulder2,
-                       estimated: bool = False):
+def update_daily_total(
+    session,
+    day,
+    load_total,
+    control_total,
+    export_total,
+    load_peak1,
+    load_shoulder1,
+    load_peak2,
+    load_shoulder2,
+    estimated: bool = False,
+):
     """ Save reading to database """
 
     # Check existing records
@@ -160,7 +179,8 @@ def update_daily_total(session,
             load_shoulder1=load_shoulder1,
             load_peak2=load_peak2,
             load_shoulder2=load_shoulder2,
-            estimated=estimated)
+            estimated=estimated,
+        )
         session.add(daily)
     else:
         r.load_total = load_total
@@ -174,7 +194,7 @@ def update_daily_total(session,
 
 
 class Monthlies(Base):
-    __tablename__ = 'monthly_totals'
+    __tablename__ = "monthly_totals"
 
     year = Column(Integer, primary_key=True)
     month = Column(Integer, primary_key=True)
@@ -199,7 +219,7 @@ class Monthlies(Base):
         else:
             fy_start = self.year - 1
         fy_end = str(fy_start + 1)
-        return f'{fy_start}-{fy_end[-2:]}'
+        return f"{fy_start}-{fy_end[-2:]}"
 
     @property
     def month_desc(self) -> str:
@@ -210,12 +230,12 @@ class Monthlies(Base):
     def season(self) -> str:
         """ Season of the month """
         if self.month in [12, 1, 2]:
-            return 'Summer'
+            return "Summer"
         if self.month in [3, 4, 5]:
-            return 'Autumn'
+            return "Autumn"
         if self.month in [6, 7, 8]:
-            return 'Winter'
-        return 'Spring'
+            return "Winter"
+        return "Spring"
 
     @property
     def daily_usage(self) -> float:
@@ -231,21 +251,36 @@ def get_monthly_energy_readings(meter_id, year: int, month: int):
     session = Session()
 
     # Filter existing records
-    res = session.query(Monthlies).filter(
-        Monthlies.year == year,
-        Monthlies.month == month,
-    ).first()
+    res = (
+        session.query(Monthlies)
+        .filter(Monthlies.year == year, Monthlies.month == month,)
+        .first()
+    )
     return res
 
 
-def update_monthly_total(session, year, month, num_days, load_total,
-                         control_total, export_total, demand, load_peak1,
-                         load_shoulder1, load_peak2, load_shoulder2):
+def update_monthly_total(
+    session,
+    year,
+    month,
+    num_days,
+    load_total,
+    control_total,
+    export_total,
+    demand,
+    load_peak1,
+    load_shoulder1,
+    load_peak2,
+    load_shoulder2,
+):
     """ Save reading to database """
 
     # Check existing records
-    r = session.query(Monthlies).filter(Monthlies.year == year,
-                                        Monthlies.month == month).first()
+    r = (
+        session.query(Monthlies)
+        .filter(Monthlies.year == year, Monthlies.month == month)
+        .first()
+    )
     if r is None:
         monthly = Monthlies(
             year=year,
@@ -258,7 +293,8 @@ def update_monthly_total(session, year, month, num_days, load_total,
             load_peak1=load_peak1,
             load_shoulder1=load_shoulder1,
             load_peak2=load_peak2,
-            load_shoulder2=load_shoulder2)
+            load_shoulder2=load_shoulder2,
+        )
         session.add(monthly)
     else:
         r.load_total = load_total
@@ -272,7 +308,7 @@ def update_monthly_total(session, year, month, num_days, load_total,
 
 
 class DailySegments(Base):
-    __tablename__ = 'daily_segments'
+    __tablename__ = "daily_segments"
 
     day = Column(DateTime, primary_key=True)
     # Time of Day Totals

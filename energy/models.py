@@ -14,21 +14,23 @@ from . import db, app
 
 class Meter(db.Model):
     """ A list of meters """
-    __tablename__ = 'meter'
+
+    __tablename__ = "meter"
     meter_id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey('user.user_id'))
-    sharing = Column(String(7)) # Public / Private
+    user_id = Column(Integer, ForeignKey("user.user_id"))
+    sharing = Column(String(7))  # Public / Private
     api_key = Column(String(36))
     meter_name = Column(String(20))
 
 
 def delete_meter_data(meter_id):
     """ Delete meter and all data """
-    Meter.query.filter(Meter.meter_id==meter_id).delete()
+    Meter.query.filter(Meter.meter_id == meter_id).delete()
     db.session.commit()
-    db_loc = f'data/meter_{meter_id}.db'
+    db_loc = f"data/meter_{meter_id}.db"
     if os.path.isfile(db_loc):
         os.remove(db_loc)
+
 
 def get_meter_name(meter_id):
     """ Return a list of meters that the user manages """
@@ -52,7 +54,7 @@ def get_user_meters(user_id):
 
 def get_public_meters():
     """ Return a list of publicly viewable meters """
-    meters = Meter.query.filter(Meter.sharing == 'public')
+    meters = Meter.query.filter(Meter.sharing == "public")
     for meter in meters:
         user_name = User.query.filter_by(user_id=meter.user_id).first().username
         yield (meter.meter_id, meter.meter_name, user_name)
@@ -61,9 +63,11 @@ def get_public_meters():
 def visible_meters(user_id):
     """ Return a list of meters that the user can view """
     if user_id:
-        meters = Meter.query.filter((Meter.user_id == user_id)|(Meter.sharing == 'public'))
+        meters = Meter.query.filter(
+            (Meter.user_id == user_id) | (Meter.sharing == "public")
+        )
     else:
-        meters = Meter.query.filter(Meter.sharing == 'public')
+        meters = Meter.query.filter(Meter.sharing == "public")
     for meter in meters:
         user_name = User.query.filter_by(user_id=meter.user_id).first().username
         yield (meter.meter_id, meter.meter_name, user_name)
@@ -71,7 +75,8 @@ def visible_meters(user_id):
 
 class User(db.Model):
     """ A user account """
-    __tablename__ = 'user'
+
+    __tablename__ = "user"
     user_id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), index=True, unique=True)
     email = db.Column(db.String(120), index=True, unique=True)
@@ -79,7 +84,7 @@ class User(db.Model):
     apikey = Column(String(128))
 
     def __repr__(self):
-        return '<User {}>'.format(self.username)
+        return "<User {}>".format(self.username)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)

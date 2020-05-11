@@ -14,43 +14,46 @@ def cli():
 
 @cli.command()
 def first_run():
-    click.echo('Creating data directories')
+    click.echo("Creating data directories")
     """ Set up files and folders on first run """
-    if not os.path.exists('logs'):
-        logging.info('Creating logs folder')
-        os.makedirs('logs')
+    if not os.path.exists("logs"):
+        logging.info("Creating logs folder")
+        os.makedirs("logs")
 
-    if not os.path.exists('data'):
-        logging.info('Creating data directory')
-        os.makedirs('data')
+    if not os.path.exists("data"):
+        logging.info("Creating data directory")
+        os.makedirs("data")
 
-    if not os.path.exists('data/uploads'):
-        logging.info('Creating uploads directory')
-        os.makedirs('data/uploads')
+    if not os.path.exists("data/uploads"):
+        logging.info("Creating uploads directory")
+        os.makedirs("data/uploads")
 
     if not os.path.exists(UPLOAD_FOLDER):
-        logging.info('Creating upload folder')
+        logging.info("Creating upload folder")
         os.makedirs(UPLOAD_FOLDER)
 
     if not os.path.isfile(DATABASE):
-        logging.info('Creating database')
+        logging.info("Creating database")
         from energy import db
+
         db.create_all()
 
-    click.echo('Done!')
+    click.echo("Done!")
 
 
 @cli.command()
-@click.option('--meterid', default=1, help='The meter ID')
+@click.option("--meterid", default=1, help="The meter ID")
 def update_metering(meterid):
-    click.echo(f'Refreshing daily stats for {meterid}')
-    #refresh_daily_stats(meterid)
-    click.echo(f'Refreshing daily segments for {meterid}')
-    refresh_daily_segments(meterid)
-    click.echo(f'Refreshing monthly stats for {meterid}')
+    click.echo(f"Refreshing daily stats for meter {meterid}")
+    refresh_daily_stats(meterid)
+    click.echo(f"Refreshing daily segments for meter {meterid}")
+    # refresh_daily_segments(meterid)
+    click.echo(f"Refreshing monthly stats for meter {meterid}")
     refresh_monthly_stats(meterid)
-    click.echo('Done!')
+    click.echo("Done!")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
+    LOG_FORMAT = "%(asctime)s %(name)-12s %(levelname)-8s %(message)s"
+    logging.basicConfig(level="INFO", format=LOG_FORMAT)
     cli()

@@ -10,7 +10,7 @@ from typing import List, Tuple, Optional
 from statistics import mean
 from dateutil.relativedelta import relativedelta
 from qldtariffs import get_daily_usages
-from qldtariffs import financial_year_starting
+from qldtariffs import financial_year_ending
 from sqlalchemy.orm import sessionmaker
 from . import get_db_engine
 from . import Dailies
@@ -21,14 +21,14 @@ from . import update_daily_total
 from . import update_daily_segments
 from . import update_monthly_total
 
-LOAD_CHS = ['E1', '11']
-CONTROL_CHS = ['E2', '41']
-GENERATION_CHS = ['B1', '71']
+LOAD_CHS = ["E1", "11"]
+CONTROL_CHS = ["E2", "41"]
+GENERATION_CHS = ["B1", "71"]
 
 
-def refresh_daily_stats(meter_id: int,
-                        start: Optional[datetime] = None,
-                        end: Optional[datetime] = None):
+def refresh_daily_stats(
+    meter_id: int, start: Optional[datetime] = None, end: Optional[datetime] = None
+):
     """ Update the daily totals after loading new readings """
 
     engine = get_db_engine(meter_id)
@@ -39,36 +39,33 @@ def refresh_daily_stats(meter_id: int,
     if not start or not end:
         start, end = get_data_range(meter_id)
 
-    msg = f'Calculating daily stats for meter {meter_id}'
+    msg = f"Calculating daily stats for meter {meter_id}"
     msg += f' from {start.strftime("%Y%m%d")} to {end.strftime("%Y%m%d")}'
     logging.info(msg)
 
     # Get General Consumption Stats
-    records = list(
-        get_load_energy_readings(meter_id, start, end, channels=LOAD_CHS))
-    daily_ergon = list(
-        get_daily_usages(records, retailer='ergon', tariff='t12'))
-    daily_seq = list(get_daily_usages(records, retailer='agl', tariff='t12'))
+    records = list(get_load_energy_readings(meter_id, start, end, channels=LOAD_CHS))
+    daily_regional = list(get_daily_usages(records, tou_timings="qld-regional"))
+    daily_south_east = list(get_daily_usages(records, tou_timings="qld-south-east"))
 
     # Get Controlled Load Stats
-    records = list(
-        get_load_energy_readings(meter_id, start, end, channels=CONTROL_CHS))
+    records = list(get_load_energy_readings(meter_id, start, end, channels=CONTROL_CHS))
     daily_control = list(get_daily_usages(records))
 
     # Get Generation Stats
     records = list(
-        get_load_energy_readings(
-            meter_id, start, end, channels=GENERATION_CHS))
+        get_load_energy_readings(meter_id, start, end, channels=GENERATION_CHS)
+    )
     daily_generation = list(get_daily_usages(records))
 
-    for i, day_ergon in enumerate(daily_ergon):
+    for i, day_ergon in enumerate(daily_regional):
 
         day = day_ergon.day
         load_total = day_ergon.total
         load_peak = day_ergon.peak
         load_shoulder = day_ergon.shoulder
-        load_peak2 = daily_seq[i].peak
-        load_shoulder2 = daily_seq[i].shoulder
+        load_peak2 = daily_south_east[i].peak
+        load_shoulder2 = daily_south_east[i].shoulder
         # See if Control and Generation Channels exist
         try:
             controlled_total = daily_control[i].total
@@ -79,17 +76,61 @@ def refresh_daily_stats(meter_id: int,
         except IndexError:
             generation_total = 0
 
-        update_daily_total(session, day, load_total, controlled_total,
-                           generation_total, load_peak, load_shoulder,
-                           load_peak2, load_shoulder2)
+        update_daily_total(
+            session,
+            day,
+            load_total,
+            controlled_total,
+            generation_total,
+            load_peak,
+            load_shoulder,
+            load_peak2,
+            load_shoulder2,
+        )
     session.commit()
 
-    # Estimate values to complete the month
-    next_month = datetime(end.year, end.month, 1) + relativedelta(months=1)
-    est_day = end
-    while est_day < next_month:
+    # Estimate values to complete the financial year
+    est_end = datetime(end.year, end.month + 1, 1)
+    add_daily_estimates(
+        meter_id,
+        end,
+        est_end,
+        load_total,
+        controlled_total,
+        generation_total,
+        load_peak,
+        load_shoulder,
+        load_peak2,
+        load_shoulder2,
+    )
+
+
+def add_daily_estimates(
+    meter_id: int,
+    start: datetime,
+    end: datetime,
+    load_total,
+    controlled_total,
+    generation_total,
+    load_peak,
+    load_shoulder,
+    load_peak2,
+    load_shoulder2,
+):
+    """ Update the daily totals after loading new readings """
+
+    engine = get_db_engine(meter_id)
+    Session = sessionmaker(bind=engine)
+    session = Session()
+
+    msg = f"Adding daily estimates for meter {meter_id}"
+    msg += f' from {start.strftime("%Y%m%d")} to {end.strftime("%Y%m%d")}'
+    logging.info(msg)
+
+    est_day = start
+    while est_day < end:
         # Update with estimate if not already populated
-        r = session.query(Dailies).filter(Dailies.day == day).first()
+        r = session.query(Dailies).filter(Dailies.day == est_day).first()
         if r is None:
             update_daily_total(
                 session,
@@ -101,14 +142,15 @@ def refresh_daily_stats(meter_id: int,
                 load_shoulder,
                 load_peak2,
                 load_shoulder2,
-                estimated=True)
+                estimated=True,
+            )
         est_day += timedelta(days=1)
     session.commit()
 
 
-def refresh_daily_segments(meter_id: int,
-                           start: Optional[datetime] = None,
-                           end: Optional[datetime] = None):
+def refresh_daily_segments(
+    meter_id: int, start: Optional[datetime] = None, end: Optional[datetime] = None
+):
     """ Update the daily totals after loading new readings """
 
     engine = get_db_engine(meter_id)
@@ -119,13 +161,14 @@ def refresh_daily_segments(meter_id: int,
     if not start or not end:
         start, end = get_data_range(meter_id)
 
-    msg = f'Calculating daily segments for meter {meter_id}'
+    msg = f"Calculating daily segments for meter {meter_id}"
     msg += f' from {start.strftime("%Y%m%d")} to {end.strftime("%Y%m%d")}'
     logging.info(msg)
 
     # Get General Consumption Stats
     load_records = list(
-        get_load_energy_readings(meter_id, start, end, channels=LOAD_CHS))
+        get_load_energy_readings(meter_id, start, end, channels=LOAD_CHS)
+    )
 
     day_summary = {}
     for read in load_records:
@@ -134,14 +177,14 @@ def refresh_daily_segments(meter_id: int,
 
         if day not in day_summary.keys():
             day_seg = {
-                'a': 0.0,
-                'b': 0.0,
-                'c': 0.0,
-                'd': 0.0,
-                'e': 0.0,
-                'f': 0.0,
-                'g': 0.0,
-                'h': 0.0,
+                "a": 0.0,
+                "b": 0.0,
+                "c": 0.0,
+                "d": 0.0,
+                "e": 0.0,
+                "f": 0.0,
+                "g": 0.0,
+                "h": 0.0,
             }
             day_summary[day] = day_seg
         else:
@@ -159,26 +202,26 @@ def refresh_daily_segments(meter_id: int,
 def get_time_of_day_segment(dt: datetime) -> str:
     """ Return day segment of datetime """
     if dt.hour < 3:
-        return 'A'
+        return "A"
     if dt.hour < 6:
-        return 'B'
+        return "B"
     if dt.hour < 9:
-        return 'C'
+        return "C"
     if dt.hour < 12:
-        return 'D'
+        return "D"
     if dt.hour < 15:
-        return 'E'
+        return "E"
     if dt.hour < 18:
-        return 'F'
+        return "F"
     if dt.hour < 21:
-        return 'G'
-    return 'H'
+        return "G"
+    return "H"
 
 
 def refresh_monthly_stats(meter_id):
     """ Update the daily totals after loading new readings """
 
-    logging.info('Calculating monthly stats for meter %s', meter_id)
+    logging.info("Calculating monthly stats for meter %s", meter_id)
     engine = get_db_engine(meter_id)
     Session = sessionmaker(bind=engine)
     session = Session()
@@ -188,8 +231,7 @@ def refresh_monthly_stats(meter_id):
         month_start = datetime(year, month, 1)
         month_end = month_start + relativedelta(months=1) - timedelta(days=1)
         num_days = month_end.day
-        daily_totals = list(
-            get_daily_energy_readings(meter_id, month_start, month_end))
+        daily_totals = list(get_daily_energy_readings(meter_id, month_start, month_end))
 
         days = 0
         load_total = 0
@@ -225,9 +267,20 @@ def refresh_monthly_stats(meter_id):
             # Readings are probably not interval readings
             demand = demand * 2
 
-        update_monthly_total(session, year, month, num_days, load_total,
-                             control_total, export_total, demand, load_peak1,
-                             load_shoulder1, load_peak2, load_shoulder2)
+        update_monthly_total(
+            session,
+            year,
+            month,
+            num_days,
+            load_total,
+            control_total,
+            export_total,
+            demand,
+            load_peak1,
+            load_shoulder1,
+            load_peak2,
+            load_shoulder2,
+        )
 
         session.commit()
 
@@ -244,7 +297,7 @@ def get_month_ranges(start: datetime, end: datetime) -> List[Tuple[int, int]]:
     periods: list = []
     day = start
     while day <= end:
-        fy = financial_year_starting(day)
+        fy = financial_year_ending(day)
         period = (day.year, day.month, fy)
         if period not in periods:
             periods.append(period)

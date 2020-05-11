@@ -10,5 +10,4 @@ requests>=2.18
 simplejson
 energy-shaper>=0.1
 python-dateutil
-pytz
-https://github.com/aguinane/qld-tariffs/archive/master.zip#egg=qldtariffs>=0.2
+git+https://github.com/aguinane/qld-tariffs@v0.4#egg=qldtariffs
