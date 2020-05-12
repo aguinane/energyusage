@@ -7,13 +7,16 @@
 import os
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
+from io import BytesIO
 from typing import Optional, Tuple
-from statistics import mean
 from collections import defaultdict
 from flask import Blueprint, render_template, redirect, url_for
-from flask import request, flash, jsonify
+from flask import flash, jsonify, Response
 from flask_login import login_required, current_user
 from flask_wtf import FlaskForm
+import pandas as pd
+import calmap
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from werkzeug.utils import secure_filename
 from metering import load_nem_data
 from metering import get_load_energy_readings
@@ -22,16 +25,15 @@ from metering import get_monthly_energy_readings
 from metering import get_data_range, get_month_ranges
 from metering import LOAD_CHS, CONTROL_CHS, GENERATION_CHS
 from metering import get_day_of_week_avg
-from energy_shaper import split_into_profiled_intervals
 from energy_shaper import group_into_profiled_intervals
 
 from . import app, db
 from .views import get_user_meters
 from .views import get_public_meters
-from .forms import FileForm, NewMeter, MeterDetails
+from .forms import FileForm, MeterDetails
 from .models import get_meter_name
 from .models import User, Meter, delete_meter_data
-from .models import get_user_meters, get_public_meters, visible_meters
+from .models import visible_meters
 from .charts import monthly_bill_data
 
 meters = Blueprint("meters", __name__, template_folder="templates")
@@ -209,6 +211,8 @@ def usage_overview(meter_id: int):
     return render_template(
         "meters/usage_all.html",
         meter_id=meter_id,
+        first_record=first_record.strftime("%Y-%m-%d"),
+        last_record=last_record.strftime("%Y-%m-%d"),
         meter_name=get_meter_name(meter_id),
         billing_months=billing_months,
         fys=fys,
@@ -275,6 +279,23 @@ def usage_stats(meter_id: int):
     stats["day_avgs"] = get_day_of_week_avg(1, stats_start, stats_end)
 
     return jsonify(stats)
+
+
+@meters.route("/<int:meter_id>/<start>/<end>/calendar_plot.png")
+def calendar_png(meter_id, start, end):
+    start_dt = datetime.strptime(start, "%Y-%m-%d")
+    end_dt = datetime.strptime(end, "%Y-%m-%d")
+    reads = list(get_load_energy_readings(1, start_dt, end_dt, channels=LOAD_CHS))
+    headings = ["period_start", "usage"]
+    rows = [[x.start, x.usage] for x in reads]
+    df = pd.DataFrame(data=rows, columns=headings)
+    df.set_index("period_start", inplace=True)
+    print(df)
+    plot = calmap.calendarplot(pd.Series(df.usage), daylabels="MTWTFSS")
+    fig = plot[0]
+    output = BytesIO()
+    FigureCanvas(fig).print_png(output)
+    return Response(output.getvalue(), mimetype="image/png")
 
 
 def get_financial_year(dt: datetime) -> str:

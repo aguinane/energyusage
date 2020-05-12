@@ -5,11 +5,9 @@
 <h1 class="page-header">Energy Usage <small>{{meter_name}}</small></h1>
 
 
-
-
 <div id="load" style="max-width: 100%; height: 350px;"></div>
 <img id="load-loading" src="{{ url_for('static', filename='img/loading_icon.gif') }}"
-    style="position: absolute; visibility:visible" />
+    style="position: absolute; visibility:visible">
 
 <h2>Yearly Summaries</h2>
 <div class="card-deck">
@@ -103,15 +101,17 @@
 
         </div><!-- /container-->
 
-    </div>
-
-
-
-
-</div><!-- /card-->
+    </div><!-- /card-->
 
 </div><!-- /card-deck-->
 
+
+<figure>
+    <img id="calendar"
+        src="{{ url_for('meters.calendar_png', meter_id=meter_id, start=first_record, end=last_record) }}"
+        alt="daily usage calendar">
+    <figcaption>Daily Consumption</figcaption>
+</figure>
 
 
 

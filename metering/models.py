@@ -147,7 +147,7 @@ def get_daily_energy_readings(meter_id, read_start: datetime, read_end: datetime
     # Filter existing records
     res = (
         session.query(Dailies)
-        .filter(Dailies.day >= read_start, Dailies.day <= read_end,)
+        .filter(Dailies.day >= read_start, Dailies.day <= read_end)
         .all()
     )
     return res
@@ -253,7 +253,7 @@ def get_monthly_energy_readings(meter_id, year: int, month: int):
     # Filter existing records
     res = (
         session.query(Monthlies)
-        .filter(Monthlies.year == year, Monthlies.month == month,)
+        .filter(Monthlies.year == year, Monthlies.month == month)
         .first()
     )
     return res
