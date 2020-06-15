@@ -15,7 +15,7 @@ from flask import flash, jsonify, Response
 from flask_login import login_required, current_user
 from flask_wtf import FlaskForm
 import pandas as pd
-import calmap
+import calplot
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from werkzeug.utils import secure_filename
 from metering import load_nem_data
@@ -290,8 +290,7 @@ def calendar_png(meter_id, start, end):
     rows = [[x.start, x.usage] for x in reads]
     df = pd.DataFrame(data=rows, columns=headings)
     df.set_index("period_start", inplace=True)
-    print(df)
-    plot = calmap.calendarplot(pd.Series(df.usage), daylabels="MTWTFSS")
+    plot = calplot.calplot(pd.Series(df.usage), daylabels="MTWTFSS")
     fig = plot[0]
     output = BytesIO()
     FigureCanvas(fig).print_png(output)

@@ -10,6 +10,6 @@ requests>=2.18
 simplejson
 energy-shaper>=0.1
 python-dateutil
-calmap
-pandas==0.25.3
+calplot
+pandas
 git+https://github.com/aguinane/qld-tariffs.git@v0.4#egg=qldtariffs
